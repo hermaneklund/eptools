@@ -1848,7 +1848,8 @@ def format_percent_1(value) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, q: str = ""):
-    number = q.strip()
+    search_query = q.strip()
+    number = search_query
     results = {}
     dashboard = None
     allocation = None
@@ -1879,28 +1880,68 @@ def index(request: Request, q: str = ""):
     dyn_df = _load_mandat_dyn()
     value_series = None
     flags_df = _load_mandat_flags()
+    matched_numbers: list[str] = []
 
-    if not number:
-        mandat_df = _load_sheet("Mandat")
-        number_col = "Number" if "Number" in mandat_df.columns else "Nummer"
-        if number_col in mandat_df.columns:
-            number_suggestions = (
-                mandat_df[number_col]
+    mandat_lookup = _load_sheet("Mandat")
+    lookup_number_col = "Number" if "Number" in mandat_lookup.columns else "Nummer"
+    if lookup_number_col in mandat_lookup.columns:
+        number_suggestions = (
+            mandat_lookup[lookup_number_col]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
+        )
+        number_suggestions = sorted(
+            number_suggestions,
+            key=lambda v: (
+                float(v)
+                if str(v).replace(".", "", 1).isdigit()
+                else float("inf"),
+                str(v),
+            ),
+        )
+        if search_query:
+            exact = (
+                mandat_lookup[lookup_number_col]
                 .dropna()
                 .astype(str)
                 .str.strip()
-                .unique()
-                .tolist()
             )
-            number_suggestions = sorted(
-                number_suggestions,
-                key=lambda v: (
-                    float(v)
-                    if str(v).replace(".", "", 1).isdigit()
-                    else float("inf"),
-                    str(v),
-                ),
-            )
+            if (exact == search_query).any():
+                matched_numbers = [search_query]
+            elif "Kund" in mandat_lookup.columns:
+                kund_mask = (
+                    mandat_lookup["Kund"]
+                    .fillna("")
+                    .astype(str)
+                    .str.casefold()
+                    .str.contains(search_query.casefold(), na=False)
+                )
+                if kund_mask.any():
+                    matched_numbers = (
+                        mandat_lookup.loc[kund_mask, lookup_number_col]
+                        .dropna()
+                        .astype(str)
+                        .str.strip()
+                        .unique()
+                        .tolist()
+                    )
+                    matched_numbers = sorted(
+                        matched_numbers,
+                        key=lambda v: (
+                            float(v)
+                            if str(v).replace(".", "", 1).isdigit()
+                            else float("inf"),
+                            str(v),
+                        ),
+                    )
+            if matched_numbers:
+                number = matched_numbers[0]
+                matched_numbers = [number]
+
+    if not number:
         for sheet in DISPLAY_SHEETS:
             if sheet in DISPLAY_MAP:
                 display_cols = [label for _, label in DISPLAY_MAP[sheet]]
