@@ -1,0 +1,41 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin DB Upload</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <main class="page" style="max-width: 680px; margin: 24px auto;">
+      <section class="sheet">
+        <div class="dash-card">
+          <h2 style="margin: 0 0 10px;">Admin DB Upload</h2>
+          <div style="font-size: 12px; color: #5f6d66; margin-bottom: 12px;">DB path: {{ db_path }}</div>
+
+          {% if status == "ok" %}
+            <div style="padding:8px 10px; border-radius:8px; background:#edf7ef; color:#1d5f2f; margin-bottom:12px; font-size:13px;">
+              {{ detail }}
+            </div>
+          {% elif status == "error" %}
+            <div style="padding:8px 10px; border-radius:8px; background:#fdecec; color:#8b1d1d; margin-bottom:12px; font-size:13px;">
+              {{ detail }}
+            </div>
+          {% endif %}
+
+          <form method="post" action="/admin/db-upload" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+            <label class="sidebar-upload-button" style="margin:0; width:auto; min-width: 220px;">
+              <input type="file" name="db_file" accept=".db,.sqlite,.sqlite3" class="sidebar-file-input-hidden" required />
+              Välj databasfil
+            </label>
+            <button type="submit" class="sidebar-button" style="width:auto; min-width:140px;">Ladda upp DB</button>
+          </form>
+
+          <div style="font-size: 12px; color: #6b746f; margin-top: 12px;">
+            Endpoint är tillfälligt aktiv via miljövariabeln <code>ENABLE_DB_UPLOAD_ADMIN=true</code>.
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

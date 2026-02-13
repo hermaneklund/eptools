@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 import os
+import shutil
 
 from io import BytesIO
 import json
@@ -47,6 +48,10 @@ DISPLAY_MAP = {
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def _admin_db_upload_enabled() -> bool:
+    return os.getenv("ENABLE_DB_UPLOAD_ADMIN", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _find_header_row(raw_df: pd.DataFrame, header_keys: list[str]) -> int:
@@ -1424,6 +1429,64 @@ async def import_excel(request: Request, excel_file: UploadFile = File(default=N
     _import_excel_to_db(uploaded_content)
     referer = request.headers.get("referer", "/")
     return RedirectResponse(referer, status_code=303)
+
+
+@app.get("/admin/db-upload", response_class=HTMLResponse)
+def admin_db_upload_page(request: Request, status: str = "", detail: str = ""):
+    if not _admin_db_upload_enabled():
+        return HTMLResponse("Admin DB upload is disabled.", status_code=403)
+    return templates.TemplateResponse(
+        "admin_db_upload.html",
+        {
+            "request": request,
+            "status": status,
+            "detail": detail,
+            "db_path": str(DB_PATH),
+        },
+    )
+
+
+@app.post("/admin/db-upload")
+async def admin_db_upload(request: Request, db_file: UploadFile = File(default=None)):
+    if not _admin_db_upload_enabled():
+        return HTMLResponse("Admin DB upload is disabled.", status_code=403)
+    if db_file is None or not db_file.filename:
+        return RedirectResponse("/admin/db-upload?status=error&detail=Ingen+fil+vald", status_code=303)
+
+    filename = db_file.filename.lower()
+    if not (filename.endswith(".db") or filename.endswith(".sqlite") or filename.endswith(".sqlite3")):
+        return RedirectResponse("/admin/db-upload?status=error&detail=Filen+maste+vara+en+SQLite-DB", status_code=303)
+
+    content = await db_file.read()
+    if not content:
+        return RedirectResponse("/admin/db-upload?status=error&detail=Tom+fil", status_code=303)
+
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = DB_PATH.with_suffix(".upload.tmp")
+    temp_path.write_bytes(content)
+
+    try:
+        with sqlite3.connect(temp_path) as conn:
+            conn.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            integrity = str(row[0]).lower() if row else ""
+            if integrity != "ok":
+                raise ValueError(f"Integrity check failed: {integrity}")
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        return RedirectResponse("/admin/db-upload?status=error&detail=Ogiltig+SQLite-fil", status_code=303)
+
+    backup_path = None
+    if DB_PATH.exists():
+        backup_path = DB_PATH.with_name(f"{DB_PATH.stem}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+        shutil.copy2(DB_PATH, backup_path)
+
+    os.replace(temp_path, DB_PATH)
+    detail_msg = "DB uppladdad och ersatt"
+    if backup_path:
+        detail_msg += f" (backup: {backup_path.name})"
+    return RedirectResponse(f"/admin/db-upload?status=ok&detail={detail_msg.replace(' ', '+')}", status_code=303)
 
 
 
