@@ -49,6 +49,17 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
+@app.on_event("startup")
+def log_db_path_on_startup():
+    resolved_db = DB_PATH if DB_PATH.is_absolute() else (BASE_DIR / DB_PATH)
+    exists = resolved_db.exists()
+    size = resolved_db.stat().st_size if exists else 0
+    print(
+        f"[startup] PORTFOLIO_DB_PATH={DB_PATH} resolved={resolved_db} "
+        f"exists={exists} size_bytes={size}"
+    )
+
+
 def _find_header_row(raw_df: pd.DataFrame, header_keys: list[str]) -> int:
     for i in range(len(raw_df)):
         row = raw_df.iloc[i].astype(str).str.strip().str.lower()
