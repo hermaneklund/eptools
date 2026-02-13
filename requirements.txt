@@ -5,3 +5,4 @@ openpyxl
 jinja2
 python-multipart
 yfinance
+gunicorn
