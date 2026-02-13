@@ -169,32 +169,6 @@ def _import_excel_to_db(excel_content: bytes | None = None) -> None:
         conn.commit()
 
 
-def _import_db_excel_to_db(excel_content: bytes) -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    workbook = pd.ExcelFile(BytesIO(excel_content), engine="openpyxl")
-    with sqlite3.connect(DB_PATH) as conn:
-        for sheet in workbook.sheet_names:
-            table_name = str(sheet).strip()
-            if not table_name:
-                continue
-            df = pd.read_excel(workbook, sheet_name=sheet, engine="openpyxl")
-            if len(df.columns) == 0:
-                continue
-            df.to_sql(table_name, conn, if_exists="replace", index=False)
-        conn.execute(
-            'CREATE TABLE IF NOT EXISTS "_meta" (key TEXT PRIMARY KEY, value TEXT)'
-        )
-        conn.execute(
-            'INSERT OR REPLACE INTO "_meta" (key, value) VALUES (?, ?)',
-            ("last_import", datetime.now().strftime("%Y-%m-%d %H:%M")),
-        )
-        conn.execute(
-            'INSERT OR REPLACE INTO "_meta" (key, value) VALUES (?, ?)',
-            ("last_import_source", "db_excel_upload"),
-        )
-        conn.commit()
-
-
 def _get_last_import() -> str:
     if not DB_PATH.exists():
         return "Ej importerat"
@@ -1450,22 +1424,6 @@ async def import_excel(request: Request, excel_file: UploadFile = File(default=N
     _import_excel_to_db(uploaded_content)
     referer = request.headers.get("referer", "/")
     return RedirectResponse(referer, status_code=303)
-
-
-@app.post("/import-db")
-async def import_db_excel(request: Request, db_excel_file: UploadFile = File(default=None)):
-    if db_excel_file is None or not db_excel_file.filename:
-        referer = request.headers.get("referer", "/")
-        return RedirectResponse(referer, status_code=303)
-    uploaded_content = await db_excel_file.read()
-    if not uploaded_content:
-        referer = request.headers.get("referer", "/")
-        return RedirectResponse(referer, status_code=303)
-    _import_db_excel_to_db(uploaded_content)
-    referer = request.headers.get("referer", "/")
-    return RedirectResponse(referer, status_code=303)
-
-
 
 
 def _normalize_number(series: pd.Series) -> pd.Series:
