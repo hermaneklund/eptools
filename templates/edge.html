@@ -358,18 +358,8 @@
           return points.filter((p) => toDate(p.date) >= start);
         };
 
-        const findBaseline = (seriesName, start, rowsRaw) => {
-          if (!start) {
-            return rowsRaw.find((v) => v !== null && !Number.isNaN(v));
-          }
-          for (let i = points.length - 1; i >= 0; i -= 1) {
-            if (toDate(points[i].date) < start) {
-              const v = points[i][seriesName];
-              const num = v === null || v === undefined ? null : Number(v);
-              if (num !== null && !Number.isNaN(num)) return num;
-            }
-          }
-          return null;
+        const findBaseline = (rowsRaw) => {
+          return rowsRaw.find((v) => v !== null && !Number.isNaN(v));
         };
 
         const buildSeries = (range) => {
@@ -378,7 +368,7 @@
           const labels = rows.map((r) => r.date);
           const datasets = seriesNames.map((name) => {
             const raw = rows.map((r) => (r[name] === null ? null : Number(r[name])));
-            const base = findBaseline(name, start, raw);
+            const base = findBaseline(raw);
             const normalized = raw.map((v) =>
               v === null || base === null || base === 0 ? null : ((v / base) - 1) * 100
             );
