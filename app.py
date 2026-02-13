@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 import os
+import logging
 
 from io import BytesIO
 import json
@@ -54,9 +55,12 @@ def log_db_path_on_startup():
     resolved_db = DB_PATH if DB_PATH.is_absolute() else (BASE_DIR / DB_PATH)
     exists = resolved_db.exists()
     size = resolved_db.stat().st_size if exists else 0
-    print(
-        f"[startup] PORTFOLIO_DB_PATH={DB_PATH} resolved={resolved_db} "
-        f"exists={exists} size_bytes={size}"
+    logging.getLogger("uvicorn.error").info(
+        "[startup] PORTFOLIO_DB_PATH=%s resolved=%s exists=%s size_bytes=%s",
+        DB_PATH,
+        resolved_db,
+        exists,
+        size,
     )
 
 
