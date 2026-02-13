@@ -1921,7 +1921,7 @@ def index(request: Request, q: str = ""):
             if sheet in DISPLAY_MAP:
                 display_cols = [label for _, label in DISPLAY_MAP[sheet]]
                 results[sheet] = {
-                    "title": "Holdings" if sheet == "Detaljerat" else sheet,
+                    "title": "Innehavslista" if sheet == "Detaljerat" else sheet,
                     "columns": display_cols,
                     "rows": [],
                 }
@@ -2060,7 +2060,7 @@ def index(request: Request, q: str = ""):
         else:
             filtered = df.head(0)
 
-        display_name = "Holdings" if sheet == "Detaljerat" else sheet
+        display_name = "Innehavslista" if sheet == "Detaljerat" else sheet
 
         if sheet in DISPLAY_MAP:
             mapped = DISPLAY_MAP[sheet]
@@ -3346,19 +3346,19 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
     preferred = [
         number_col,
         "Kund",
-        "FI",
+        "Mandat",
+        "Rådgivare",
+        "Mandatnotering",
+        "Förvaltningsnotering",
+        "FI-notering",
         "dynamisk",
         "coresv",
         "corevä",
         "edge",
         "alts",
     ]
+    mid_after_fi_notering = ["FI", "CS", "CV", "Ed", "Alt"]
     move_right = [
-        "Mandat",
-        "Rådgivare",
-        "Mandatnotering",
-        "Förvaltningsnotering",
-        "FI-notering",
         "Godkännande",
         "Placeringsriktlinjer",
         "RG7>25",
@@ -3369,12 +3369,11 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
         "Rä != 0",
         "Alt!= 0",
     ]
-    tail = ["CS", "CV", "Ed", "Alt"]
     existing = [c for c in preferred if c in df.columns]
-    remaining = [c for c in df.columns if c not in existing and c not in tail and c not in move_right]
+    mid_existing = [c for c in mid_after_fi_notering if c in df.columns]
+    remaining = [c for c in df.columns if c not in existing and c not in mid_after_fi_notering and c not in move_right]
     move_right_existing = [c for c in move_right if c in df.columns]
-    tail_existing = [c for c in tail if c in df.columns]
-    columns = existing + remaining + tail_existing + move_right_existing
+    columns = existing + mid_existing + remaining + move_right_existing
     columns = [c for c in columns if c not in {"dynCS", "dynCV", "dynEd", "dynAlt"}]
     if sort_by == "number" and number_col in df.columns:
         df = df.sort_values(by=number_col, key=lambda s: pd.to_numeric(s, errors="coerce"))

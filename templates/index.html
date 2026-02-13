@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Portfolio Viewer</title>
-    <link rel="stylesheet" href="/static/style.css?v=1" />
+    <link rel="stylesheet" href="/static/style.css?v=2" />
   </head>
   <body>
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
@@ -45,7 +45,9 @@
     </aside>
     <main class="page">
       <div class="logo-wrap">
-        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+        <a href="/" aria-label="Go to Portfolio Viewer">
+          <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+        </a>
       </div>
       <header class="header">
         <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
@@ -99,13 +101,12 @@
       </script>
 
       {% if dashboard %}
-        <section class="dashboard">
+        <section class="dashboard overview-card">
           <div class="dash-header">
             <div class="header-left">
               <h2>{{ dashboard.Kund }}</h2>
               <div class="notes header-notes">
-                <p><strong>Depånummer:</strong> {{ dashboard.Number }}</p>
-                <p><strong>Mandat:</strong> {{ dashboard.Mandat }}</p>
+                <p>{{ dashboard.Number }} | {{ dashboard.Mandat }}</p>
               </div>
             </div>
             <div class="header-right">
@@ -125,7 +126,7 @@
               </div>
             </div>
           {% endif %}
-          <div class="notes">
+          <div class="notes overview-notes">
             <p><strong>Mandatnotering:</strong> {{ dashboard["Mandatnotering"] }}</p>
             <p><strong>Förvaltningsnotering:</strong> {{ dashboard["Förvaltningsnotering"] }}</p>
             <p><strong>FI-notering:</strong> {{ dashboard["FI-notering"] }}</p>
@@ -138,7 +139,7 @@
           <div class="portfolio-header">
             <div class="portfolio-left">
               <div class="dash-header">
-                <h2>Portfolio</h2>
+                <h2>Portfölj</h2>
               </div>
               {% if holdings_total is not none %}
                 <p class="allocation-total">
@@ -151,13 +152,8 @@
               {% endif %}
             </div>
             <div class="allocation-charts">
-              <div class="chart-card" style="width:180px;">
-                <h3>Moduler</h3>
-                <div id="chart-modul" style="height:140px; width:140px; margin:0 auto;"></div>
-              </div>
-              <div class="chart-card" style="width:180px;">
-                <h3>Tillgångsslag</h3>
-                <div id="chart-tillgang" style="height:140px; width:140px; margin:0 auto;"></div>
+              <div class="chart-card" style="width:300px;">
+                <div id="chart-tillgang" style="height:150px; width:270px; margin:0 0 0 auto;"></div>
               </div>
             </div>
           </div>
@@ -228,7 +224,7 @@
             </div>
             {% set missing = missing_by_modul.get("fixed income") %}
             <div class="allocation-row row-fi"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
-              <div>Fixed Income</div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Fixed Income</div>
               <div>{{ format_cell("Alt", fixed_income_share) }}</div>
               <div>{{ format_cell("Alt", fixed_income_model) }}</div>
               <div>{{ portfolio_modul_counts.get("fixed income", 0) }}</div>
@@ -236,7 +232,7 @@
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("fixed income", 0)) }}</div>
             </div>
             <div class="allocation-row row-ovrigt">
-              <div>Övrigt</div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Övrigt</div>
               <div>{{ format_cell("Alt", ovrigt_share) }}</div>
               <div></div>
               <div></div>
@@ -284,33 +280,28 @@
         });
       }
 
-        const modulTotals = {{ modul_totals | tojson }};
         const tillgangTotals = {{ tillgang_totals | tojson }};
 
-        const modulLabels = Object.keys(modulTotals);
-        const modulValuesRaw = Object.values(modulTotals);
-        const modulColors = modulLabels.map((label) => {
-          const key = String(label).toLowerCase();
-          if (key.includes("alternativa")) return "#f7e7a6";
-          if (key.includes("core sverige")) return "#9cd4f0";
-          if (key.includes("core världen")) return "#5A9CB5";
-          if (key.includes("edge")) return "#9cd8b3";
-          if (key.includes("fixed income")) return "#6E8C76";
-          if (key.includes("övrigt") || key.includes("ovrigt")) return "#e6d9f2";
-          return "#d8dee9";
+        const tillgangBuckets = { "Ränta": 0, "Aktier": 0, "Alternativa": 0, "Valuta": 0 };
+        Object.entries(tillgangTotals).forEach(([rawLabel, rawValue]) => {
+          const key = String(rawLabel || "").toLowerCase();
+          const value = Number(rawValue) || 0;
+          if (key.includes("fixed income") || key.includes("ränta") || key.includes("ranta")) {
+            tillgangBuckets["Ränta"] += value;
+          } else if (key.includes("aktier")) {
+            tillgangBuckets["Aktier"] += value;
+          } else if (key.includes("alternativa")) {
+            tillgangBuckets["Alternativa"] += value;
+          } else if (key.includes("valuta")) {
+            tillgangBuckets["Valuta"] += value;
+          }
         });
 
-        const tillgangLabels = Object.keys(tillgangTotals);
-        const tillgangValuesRaw = Object.values(tillgangTotals);
-        const tillgangColors = tillgangLabels.map((label) => {
-          const key = String(label).toLowerCase();
-          if (key.includes("aktier")) return "#6EAAD0";
-          if (key.includes("alternativa")) return "#f7e7a6";
-          if (key.includes("fixed income") || key.includes("ränta")) return "#6E8C76";
-          if (key.includes("valuta") || key.includes("valute")) return "#e2e8f0";
-          if (key.includes("övrigt") || key.includes("ovrigt")) return "#e6d9f2";
-          return "#94a3b8";
-        });
+        const tillgangPairs = Object.entries(tillgangBuckets)
+          .filter(([, v]) => (Number(v) || 0) > 0)
+          .sort((a, b) => b[1] - a[1]);
+        const tillgangNames = tillgangPairs.map((p) => p[0]);
+        const tillgangValuesRaw = tillgangPairs.map((p) => p[1]);
 
         const toPercent = (values) => {
           const total = values.reduce((sum, v) => sum + (Number(v) || 0), 0);
@@ -318,26 +309,41 @@
           return values.map((v) => ((Number(v) || 0) / total) * 100);
         };
 
-        const renderDonut = (id, labels, values, colors) => {
+        const tillgangValuesPct = toPercent(tillgangValuesRaw);
+        const tillgangLabels = tillgangNames.map((name, i) => `${name} ${Math.round(tillgangValuesPct[i])}%`);
+        const tillgangColorMap = {
+          "Ränta": "#0C2C55",
+          "Aktier": "#296374",
+          "Alternativa": "#629FAD",
+          "Valuta": "#EDEDCE",
+        };
+        const tillgangColors = tillgangNames.map((name) => tillgangColorMap[name] || "#629FAD");
+
+        const renderDonut = (id, labels, values, colors, hoverNames = null) => {
           const el = document.getElementById(id);
           if (!el || !labels.length) return;
           const data = [
             {
               labels,
               values,
+              customdata: hoverNames || labels,
               type: "pie",
               hole: 0.4,
+              sort: false,
+              direction: "clockwise",
+              rotation: 360,
               marker: { colors, line: { width: 0 } },
               textinfo: "none",
-              hovertemplate: "%{label}: %{value:.0f}%<extra></extra>",
+              hovertemplate: "%{customdata}: %{value:.0f}%<extra></extra>",
             },
           ];
           Plotly.newPlot(
             el,
             data,
             {
-              margin: { t: 10, r: 10, b: 10, l: 10 },
-              showlegend: false,
+              margin: { t: 2, r: 10, b: 2, l: 10 },
+              showlegend: true,
+              legend: { orientation: "v", x: 1.02, y: 0.5, xanchor: "left", yanchor: "middle" },
               paper_bgcolor: "rgba(0,0,0,0)",
               plot_bgcolor: "rgba(0,0,0,0)",
               transition: { duration: 600, easing: "cubic-in-out" },
@@ -351,15 +357,14 @@
           );
         };
 
-        renderDonut("chart-modul", modulLabels, toPercent(modulValuesRaw), modulColors);
-        renderDonut("chart-tillgang", tillgangLabels, toPercent(tillgangValuesRaw), tillgangColors);
+        renderDonut("chart-tillgang", tillgangLabels, tillgangValuesPct, tillgangColors, tillgangNames);
       </script>
 
       {% if q %}
         {% if has_holdings %}
           {% for sheet, payload in results.items() %}
             {% if sheet in display_sheets %}
-              <section class="sheet{% if payload.title == 'Holdings' %} portfolio-holdings{% endif %}">
+              <section class="sheet{% if payload.title == 'Innehavslista' %} portfolio-holdings{% endif %}">
                 <h2>{{ payload.title }}</h2>
                 {% if payload.rows and payload.rows|length > 0 %}
                   <div class="table-wrap viewer-table">
@@ -376,7 +381,7 @@
                         <tr class="{{ row.get('_row_class', '') }}">
                           {% for col in payload.columns %}
                             <td>
-                              {% if payload.title == "Holdings" and col == "Modul" and not row.get("_row_class") %}
+                              {% if payload.title == "Innehavslista" and col == "Modul" and not row.get("_row_class") %}
                                 {% set modul = (row[col] ~ "")|lower %}
                                 {% set cls = "modul-badge" %}
                                 {% if "alternativa" in modul %}
