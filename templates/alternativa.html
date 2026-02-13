@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E&P Portfolio Viewer - Alternativa</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mandat" class="sidebar-link">Mandat</a>
+        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
+            Förvaltning <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
+            <a href="/edge" class="sidebar-link">Edge</a>
+            <a href="/alternativa" class="sidebar-link">Alternativa</a>
+            <a href="/core-varlden" class="sidebar-link">Core Världen</a>
+          </div>
+        </div>
+        <div class="sidebar-spacer"></div>
+        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
+          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
+        </form>
+                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+          <label class="sidebar-upload-button">
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
+            Välj Excel-fil
+          </label>
+          <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
+      </nav>
+    </aside>
+    <main class="page">
+      <div class="logo-wrap">
+        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+      </div>
+      <header class="header">
+        <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
+          <span class="menu-label">Menu</span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <section class="sheet">
+        <div class="model-header-row">
+          <div class="model-header-stack">
+            <h2 class="model-header">Alternativa</h2>
+            <div class="model-subtitle">Modellportfölj</div>
+          </div>
+        </div>
+        <div class="dash-card core-sv-compact">
+          {% if holdings_rows and holdings_rows|length > 0 %}
+            <div class="table-wrap" style="margin-top:8px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Värdepapper</th>
+                    <th>Antal</th>
+                    <th>GAV</th>
+                    <th>Kurs</th>
+                    <th>Utv.</th>
+                    <th>FX</th>
+                    <th>Värde</th>
+                    <th>Sektor</th>
+                    <th>Vikt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in holdings_rows %}
+                    {% set is_kassa = row['Värdepapper']|upper == 'KASSA' %}
+                    <tr class="{% if is_kassa %}kassa-row{% endif %}">
+                      <td>{{ row["Värdepapper"] }}</td>
+                      <td>{% if not is_kassa %}{{ format_cell("Antal", row["Antal"]) }}{% endif %}</td>
+                      <td>{% if not is_kassa %}{{ format_cell("GAV", row["GAV"]) }}{% endif %}</td>
+                      <td>{% if not is_kassa %}{{ format_cell("Kurs", row["Kurs"]) }}{% endif %}</td>
+                      {% set utv_val = row["Utv"] %}
+                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.10 %}utv-negative{% elif utv_val is not none and utv_val >= 0.20 %}utv-positive{% endif %}{% endif %}">
+                        {% if not is_kassa %}{{ format_cell("Utv.", utv_val) }}{% endif %}
+                      </td>
+                      <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
+                      <td>{{ format_cell("Värde i SEK", row["Värde"]) }}</td>
+                      <td>{% if not is_kassa %}{{ format_cell("Sektor", row["Sektor"]) }}{% endif %}</td>
+                      <td>{{ format_percent_1(row["Vikt"]) }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if chart_points %}
+              <div class="chart-card" style="margin:24px 0; width:100%;">
+                <div id="alt-performance-chart" style="height:360px; width:100%;"></div>
+                <div class="chart-controls minimalist">
+                  <button class="range-button" type="button" data-range="ytd">YTD</button>
+                  <button class="range-button is-active" type="button" data-range="1y">1Y</button>
+                  <button class="range-button" type="button" data-range="2y">2Y</button>
+                  <button class="range-button" type="button" data-range="3y">3Y</button>
+                  <button class="range-button" type="button" data-range="all">All</button>
+                </div>
+              </div>
+            {% endif %}
+            {% if performance_rows and performance_rows|length > 0 %}
+              <div class="table-wrap perf-wrap" style="margin-top:16px;">
+                <table class="perf-table">
+                  <thead>
+                    <tr>
+                      <th>Performance</th>
+                      {% for year in performance_years %}
+                        <th class="perf-year">{{ year }}</th>
+                      {% endfor %}
+                      <th class="perf-year">YTD</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in performance_rows %}
+                    <tr>
+                      <td>{{ row["Name"] }}</td>
+                      {% for year in performance_years %}
+                        <td class="perf-year">
+                          {% if row[year] is not none %}
+                            {{ format_percent_1(row[year]) }}
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                      <td class="perf-year">
+                        {% if row["YTD"] is not none %}
+                          {{ format_percent_1(row["YTD"]) }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
+          {% else %}
+            <p class="empty" style="margin-top:8px;">Inga data.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="sheet core-sv-secondary">
+        <div class="core-sv-grid">
+          <div class="dash-card">
+            <div class="dash-title">Historik</div>
+            {% if data_rows and data_rows|length > 0 %}
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      {% for col in data_cols %}
+                        <th>{{ col }}</th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in data_rows %}
+                      <tr>
+                        {% for col in data_cols %}
+                          <td>{{ format_cell(col, row[col]) }}</td>
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="empty" style="margin-top:8px;">Inga data.</p>
+            {% endif %}
+          </div>
+          <div class="dash-card">
+            <div class="dash-title">Actions</div>
+            <form method="post" action="/model-actions-add" class="action-add-form">
+              <input type="hidden" name="model" value="alternativa" />
+              <input type="date" name="Datum" required />
+              <input type="text" name="Värdepapper" placeholder="Värdepapper" required />
+              <input type="text" name="Transaktionstyp" placeholder="Transaktionstyp" required />
+              <input type="number" step="any" name="Antal" placeholder="Antal" required />
+              <input type="number" step="any" name="Kurs" placeholder="Kurs" required />
+              <button type="submit">Lägg till</button>
+            </form>
+            {% if action_rows and action_rows|length > 0 %}
+              <form method="post" action="/model-actions-save" class="actions-form">
+                <input type="hidden" name="model" value="alternativa" />
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        {% for col in action_cols %}
+                          <th class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">{{ col }}</th>
+                        {% endfor %}
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in action_rows %}
+                        {% set editable_top = loop.index0 < 3 %}
+                        <tr class="actions-row taggar-row">
+                          {% for col in action_cols %}
+                            <td class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">
+                              <span class="cell-readonly">{{ format_cell(col, row[col]) }}</span>
+                              {% if editable_top and col in ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs"] %}
+                                <input
+                                  type="text"
+                                  name="row__{{ row['row_id'] }}__{{ col }}"
+                                  value="{{ row[col] }}"
+                                  class="cell-edit action-cell-edit"
+                                  disabled
+                                />
+                              {% endif %}
+                            </td>
+                          {% endfor %}
+                          <td class="table-actions-cell">
+                            {% if editable_top %}
+                              <button type="button" class="taggar-edit actions-edit" data-row="{{ row['row_id'] }}">✎</button>
+                              <button type="submit" class="taggar-save-row actions-save-row" name="row_id" value="{{ row['row_id'] }}">Spara</button>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            {% else %}
+              <p class="empty" style="margin-top:8px;">Inga data.</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const menuButton = document.getElementById("menu-button");
+
+      const openSidebar = () => {
+        sidebar.classList.add("open");
+        backdrop.classList.add("show");
+      };
+
+      const closeSidebar = () => {
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+      };
+
+      menuButton.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      const forvaltningToggle = document.querySelector(".sidebar-toggle");
+      if (forvaltningToggle) {
+        const targetId = forvaltningToggle.dataset.target;
+        const target = document.getElementById(targetId);
+        forvaltningToggle.addEventListener("click", () => {
+          if (target) {
+            target.classList.toggle("open");
+          }
+        });
+      }
+
+      const actionRows = document.querySelectorAll(".actions-row");
+      actionRows.forEach((row) => {
+        const editBtn = row.querySelector(".actions-edit");
+        const inputs = row.querySelectorAll(".cell-edit");
+        const readonly = row.querySelectorAll(".cell-readonly");
+
+        const setEditing = (isEditing) => {
+          row.classList.toggle("editing", isEditing);
+          inputs.forEach((input) => {
+            input.disabled = !isEditing;
+          });
+          readonly.forEach((el) => {
+            el.style.display = isEditing ? "none" : "inline-block";
+          });
+        };
+
+        setEditing(false);
+
+        if (editBtn) {
+          editBtn.addEventListener("click", () => {
+            setEditing(true);
+            const first = row.querySelector(".cell-edit");
+            if (first) first.focus();
+          });
+        }
+      });
+    </script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+      const points = {{ chart_points|safe }};
+      const chartEl = document.getElementById("alt-performance-chart");
+      if (chartEl && points && points.length) {
+        const colors = {
+          Alternativa: "#005F02",
+          "RLY SEK": "#C0B87A",
+        };
+        const seriesNames = ["Alternativa", "RLY SEK"].filter((n) =>
+          points.some((p) => p[n] !== null && p[n] !== undefined)
+        );
+        const toDate = (s) => new Date(`${s}T00:00:00`);
+        const latestDate = toDate(points[points.length - 1].date);
+
+        const getRangeStart = (range) => {
+          if (range === "all") return null;
+          if (range === "ytd") return new Date(latestDate.getFullYear(), 0, 1);
+          const years = parseInt(range.replace("y", ""), 10);
+          const start = new Date(latestDate);
+          start.setFullYear(start.getFullYear() - years);
+          return start;
+        };
+
+        const filterByRange = (range) => {
+          const start = getRangeStart(range);
+          if (!start) return points;
+          return points.filter((p) => toDate(p.date) >= start);
+        };
+
+        const findBaseline = (seriesName, start, rowsRaw) => {
+          if (!start) {
+            return rowsRaw.find((v) => v !== null && !Number.isNaN(v));
+          }
+          for (let i = points.length - 1; i >= 0; i -= 1) {
+            if (toDate(points[i].date) < start) {
+              const v = points[i][seriesName];
+              const num = v === null || v === undefined ? null : Number(v);
+              if (num !== null && !Number.isNaN(num)) return num;
+            }
+          }
+          return null;
+        };
+
+        const buildSeries = (range) => {
+          const start = getRangeStart(range);
+          const rows = filterByRange(range);
+          const labels = rows.map((r) => r.date);
+          const datasets = seriesNames.map((name) => {
+            const raw = rows.map((r) => (r[name] === null ? null : Number(r[name])));
+            const base = findBaseline(name, start, raw);
+            const normalized = raw.map((v) =>
+              v === null || base === null || base === 0 ? null : ((v / base) - 1) * 100
+            );
+            return {
+              name,
+              x: labels,
+              y: normalized,
+              mode: "lines",
+              line: { color: colors[name] || "#2C6E4F", width: 2, shape: "spline", smoothing: 0.4 },
+            };
+          });
+          return { labels, datasets };
+        };
+
+        const initial = buildSeries("1y");
+        Plotly.newPlot(
+          chartEl,
+          initial.datasets,
+          {
+            margin: { t: 10, r: 20, b: 35, l: 50 },
+            showlegend: true,
+            legend: { orientation: "v", x: 1.02, y: 0.5, xanchor: "left", yanchor: "middle" },
+            xaxis: { showgrid: false },
+            yaxis: { showgrid: false, ticksuffix: "%" },
+          },
+          { displayModeBar: false, responsive: true }
+        );
+
+        document.querySelectorAll(".chart-controls .range-button").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            document
+              .querySelectorAll(".chart-controls .range-button")
+              .forEach((b) => b.classList.remove("is-active"));
+            btn.classList.add("is-active");
+            const range = btn.dataset.range;
+            const next = buildSeries(range);
+            Plotly.react(
+              chartEl,
+              next.datasets,
+              {
+                margin: { t: 10, r: 20, b: 35, l: 50 },
+                showlegend: true,
+                legend: { orientation: "v", x: 1.02, y: 0.5, xanchor: "left", yanchor: "middle" },
+                xaxis: { showgrid: false },
+                yaxis: { showgrid: false, ticksuffix: "%" },
+              },
+              { displayModeBar: false, responsive: true }
+            );
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

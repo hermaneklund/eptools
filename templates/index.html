@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E&P Portfolio Viewer</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mandat" class="sidebar-link">Mandat</a>
+        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
+            Förvaltning <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
+            <a href="/edge" class="sidebar-link">Edge</a>
+            <a href="/alternativa" class="sidebar-link">Alternativa</a>
+            <a href="/core-varlden" class="sidebar-link">Core Världen</a>
+          </div>
+        </div>
+        <div class="sidebar-spacer"></div>
+        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
+          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
+        </form>
+                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+          <label class="sidebar-upload-button">
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
+            Välj Excel-fil
+          </label>
+          <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
+      </nav>
+    </aside>
+    <main class="page">
+      <div class="logo-wrap">
+        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+      </div>
+      <header class="header">
+        <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
+          <span class="menu-label">Menu</span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <form class="search" method="get" action="/">
+        <input
+          type="text"
+          name="q"
+          value="{{ q }}"
+          list="number-suggestions"
+          autocomplete="off"
+        />
+        <button type="submit">Search</button>
+      </form>
+      <datalist id="number-suggestions">
+        {% for item in number_suggestions %}
+          <option value="{{ item }}"></option>
+        {% endfor %}
+      </datalist>
+      <script>
+        const input = document.querySelector('input[name="q"]');
+        const datalist = document.getElementById("number-suggestions");
+        const allNumbers = {{ number_suggestions | tojson }};
+
+        const renderOptions = (items) => {
+          datalist.innerHTML = "";
+          items.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            datalist.appendChild(option);
+          });
+        };
+
+        renderOptions(allNumbers);
+
+        input.addEventListener("input", () => {
+          const value = input.value.trim();
+          if (!value) {
+            renderOptions(allNumbers);
+            return;
+          }
+          const filtered = allNumbers.filter((num) => String(num).startsWith(value));
+          renderOptions(filtered);
+        });
+      </script>
+
+      {% if dashboard %}
+        <section class="dashboard">
+          <div class="dash-header">
+            <div class="header-left">
+              <h2>{{ dashboard.Kund }}</h2>
+              <div class="notes header-notes">
+                <p><strong>Depånummer:</strong> {{ dashboard.Number }}</p>
+                <p><strong>Mandat:</strong> {{ dashboard.Mandat }}</p>
+              </div>
+            </div>
+            <div class="header-right">
+              <div class="field">
+                <span class="label">Rådgivare</span>
+                <span class="value">{{ dashboard["Rådgivare"] }}</span>
+              </div>
+            </div>
+          </div>
+          {% if related_numbers %}
+            <div class="related-numbers">
+              <span class="label">Andra depåer</span>
+              <div class="related-list">
+                {% for n in related_numbers %}
+                  <a class="related-item" href="/?q={{ n }}">{{ n }}</a>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+          <div class="notes">
+            <p><strong>Mandatnotering:</strong> {{ dashboard["Mandatnotering"] }}</p>
+            <p><strong>Förvaltningsnotering:</strong> {{ dashboard["Förvaltningsnotering"] }}</p>
+            <p><strong>FI-notering:</strong> {{ dashboard["FI-notering"] }}</p>
+          </div>
+        </section>
+      {% endif %}
+
+      {% if allocation and has_holdings %}
+        <section class="dashboard allocation portfolio-card">
+          <div class="portfolio-header">
+            <div class="portfolio-left">
+              <div class="dash-header">
+                <h2>Portfolio</h2>
+              </div>
+              {% if holdings_total is not none %}
+                <p class="allocation-total">
+                  <strong>Värde:</strong> {{ format_cell("Värde i SEK", holdings_total) }}
+                </p>
+                <p class="allocation-total">
+                  <strong>Kassa:</strong> {{ format_cell("Värde i SEK", valuta_total) }}
+                  ({{ format_percent(valuta_share) }})
+                </p>
+              {% endif %}
+            </div>
+            <div class="allocation-charts">
+              <div class="chart-card" style="width:180px;">
+                <h3>Moduler</h3>
+                <div id="chart-modul" style="height:140px; width:140px; margin:0 auto;"></div>
+              </div>
+              <div class="chart-card" style="width:180px;">
+                <h3>Tillgångsslag</h3>
+                <div id="chart-tillgang" style="height:140px; width:140px; margin:0 auto;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="allocation-table">
+            <div class="allocation-row allocation-header">
+              <div>Moduler</div>
+              <div>% i portfölj</div>
+              <div>% i modell</div>
+              <div># i portfölj</div>
+              <div># i modell</div>
+              <div>Position</div>
+            </div>
+            {% set missing = missing_by_modul.get("alternativa") %}
+            <div class="allocation-row row-alt"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
+              <div>
+                <a class="alloc-link" href="/ombalansering?modul=alternativa{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Alternativa" aria-label="Visa ombalansering för Alternativa">
+                  <img src="/static/balance.png" alt="" aria-hidden="true" />
+                </a>
+                Alternativa
+              </div>
+              <div>{{ format_cell("Alt", alternativa_share) }}</div>
+              <div>{{ format_cell("Alt", allocation.Alt) }}</div>
+              <div>{{ portfolio_modul_counts.get("alternativa", 0) }}</div>
+              <div>{{ model_modul_counts.get("alternativa", 0) }}</div>
+              <div>{{ format_cell("Värde i SEK", post_by_modul.get("alternativa", 0)) }}</div>
+            </div>
+            {% set missing = missing_by_modul.get("core sverige") %}
+            <div class="allocation-row row-cs"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
+              <div>
+                <a class="alloc-link" href="/ombalansering?modul=core-sverige{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Core Sverige" aria-label="Visa ombalansering för Core Sverige">
+                  <img src="/static/balance.png" alt="" aria-hidden="true" />
+                </a>
+                Core Sverige
+              </div>
+              <div>{{ format_cell("CS", core_sverige_share) }}</div>
+              <div>{{ format_cell("CS", allocation.CS) }}</div>
+              <div>{{ portfolio_modul_counts.get("core sverige", 0) }}</div>
+              <div>{{ model_modul_counts.get("core sverige", 0) }}</div>
+              <div>{{ format_cell("Värde i SEK", post_by_modul.get("core sverige", 0)) }}</div>
+            </div>
+            {% set missing = missing_by_modul.get("core världen") %}
+            <div class="allocation-row row-cv"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
+              <div>
+                <a class="alloc-link" href="/ombalansering?modul=core-varlden{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Core Världen" aria-label="Visa ombalansering för Core Världen">
+                  <img src="/static/balance.png" alt="" aria-hidden="true" />
+                </a>
+                Core Världen
+              </div>
+              <div>{{ format_cell("CV", core_varlden_share) }}</div>
+              <div>{{ format_cell("CV", allocation.CV) }}</div>
+              <div>{{ portfolio_modul_counts.get("core världen", 0) }}</div>
+              <div>{{ model_modul_counts.get("core världen", 0) }}</div>
+              <div>{{ format_cell("Värde i SEK", post_by_modul.get("core världen", 0)) }}</div>
+            </div>
+            {% set missing = missing_by_modul.get("edge") %}
+            <div class="allocation-row row-ed"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
+              <div>
+                <a class="alloc-link" href="/ombalansering?modul=edge{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Edge" aria-label="Visa ombalansering för Edge">
+                  <img src="/static/balance.png" alt="" aria-hidden="true" />
+                </a>
+                Edge
+              </div>
+              <div>{{ format_cell("Ed", edge_share) }}</div>
+              <div>{{ format_cell("Ed", allocation.Ed) }}</div>
+              <div>{{ portfolio_modul_counts.get("edge", 0) }}</div>
+              <div>{{ model_modul_counts.get("edge", 0) }}</div>
+              <div>{{ format_cell("Värde i SEK", post_by_modul.get("edge", 0)) }}</div>
+            </div>
+            {% set missing = missing_by_modul.get("fixed income") %}
+            <div class="allocation-row row-fi"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
+              <div>Fixed Income</div>
+              <div>{{ format_cell("Alt", fixed_income_share) }}</div>
+              <div>{{ format_cell("Alt", fixed_income_model) }}</div>
+              <div>{{ portfolio_modul_counts.get("fixed income", 0) }}</div>
+              <div></div>
+              <div>{{ format_cell("Värde i SEK", post_by_modul.get("fixed income", 0)) }}</div>
+            </div>
+            <div class="allocation-row row-ovrigt">
+              <div>Övrigt</div>
+              <div>{{ format_cell("Alt", ovrigt_share) }}</div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+
+      <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+      <script>
+        const sidebar = document.getElementById("sidebar");
+        const backdrop = document.getElementById("sidebar-backdrop");
+        const menuButton = document.getElementById("menu-button");
+
+        const openSidebar = () => {
+          sidebar.classList.add("open");
+          backdrop.classList.add("show");
+        };
+
+        const closeSidebar = () => {
+          sidebar.classList.remove("open");
+          backdrop.classList.remove("show");
+        };
+
+      menuButton.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      const forvaltningToggle = document.querySelector(".sidebar-toggle");
+      if (forvaltningToggle) {
+        const targetId = forvaltningToggle.dataset.target;
+        const target = document.getElementById(targetId);
+        forvaltningToggle.addEventListener("click", () => {
+          if (target) {
+            target.classList.toggle("open");
+          }
+        });
+      }
+
+        const modulTotals = {{ modul_totals | tojson }};
+        const tillgangTotals = {{ tillgang_totals | tojson }};
+
+        const modulLabels = Object.keys(modulTotals);
+        const modulValuesRaw = Object.values(modulTotals);
+        const modulColors = modulLabels.map((label) => {
+          const key = String(label).toLowerCase();
+          if (key.includes("alternativa")) return "#f7e7a6";
+          if (key.includes("core sverige")) return "#9cd4f0";
+          if (key.includes("core världen")) return "#5A9CB5";
+          if (key.includes("edge")) return "#9cd8b3";
+          if (key.includes("fixed income")) return "#6E8C76";
+          if (key.includes("övrigt") || key.includes("ovrigt")) return "#e6d9f2";
+          return "#d8dee9";
+        });
+
+        const tillgangLabels = Object.keys(tillgangTotals);
+        const tillgangValuesRaw = Object.values(tillgangTotals);
+        const tillgangColors = tillgangLabels.map((label) => {
+          const key = String(label).toLowerCase();
+          if (key.includes("aktier")) return "#6EAAD0";
+          if (key.includes("alternativa")) return "#f7e7a6";
+          if (key.includes("fixed income") || key.includes("ränta")) return "#6E8C76";
+          if (key.includes("valuta") || key.includes("valute")) return "#e2e8f0";
+          if (key.includes("övrigt") || key.includes("ovrigt")) return "#e6d9f2";
+          return "#94a3b8";
+        });
+
+        const toPercent = (values) => {
+          const total = values.reduce((sum, v) => sum + (Number(v) || 0), 0);
+          if (!total) return values.map(() => 0);
+          return values.map((v) => ((Number(v) || 0) / total) * 100);
+        };
+
+        const renderDonut = (id, labels, values, colors) => {
+          const el = document.getElementById(id);
+          if (!el || !labels.length) return;
+          const data = [
+            {
+              labels,
+              values,
+              type: "pie",
+              hole: 0.4,
+              marker: { colors, line: { width: 0 } },
+              textinfo: "none",
+              hovertemplate: "%{label}: %{value:.0f}%<extra></extra>",
+            },
+          ];
+          Plotly.newPlot(
+            el,
+            data,
+            {
+              margin: { t: 10, r: 10, b: 10, l: 10 },
+              showlegend: false,
+              paper_bgcolor: "rgba(0,0,0,0)",
+              plot_bgcolor: "rgba(0,0,0,0)",
+              transition: { duration: 600, easing: "cubic-in-out" },
+            },
+            { displayModeBar: false, responsive: true }
+          );
+          Plotly.animate(
+            el,
+            { data },
+            { transition: { duration: 600, easing: "cubic-in-out" }, frame: { duration: 600 } }
+          );
+        };
+
+        renderDonut("chart-modul", modulLabels, toPercent(modulValuesRaw), modulColors);
+        renderDonut("chart-tillgang", tillgangLabels, toPercent(tillgangValuesRaw), tillgangColors);
+      </script>
+
+      {% if q %}
+        {% if has_holdings %}
+          {% for sheet, payload in results.items() %}
+            {% if sheet in display_sheets %}
+              <section class="sheet{% if payload.title == 'Holdings' %} portfolio-holdings{% endif %}">
+                <h2>{{ payload.title }}</h2>
+                {% if payload.rows and payload.rows|length > 0 %}
+                  <div class="table-wrap viewer-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          {% for col in payload.columns %}
+                            <th>{{ col }}</th>
+                          {% endfor %}
+                        </tr>
+                      </thead>
+                    <tbody>
+                      {% for row in payload.rows %}
+                        <tr class="{{ row.get('_row_class', '') }}">
+                          {% for col in payload.columns %}
+                            <td>
+                              {% if payload.title == "Holdings" and col == "Modul" and not row.get("_row_class") %}
+                                {% set modul = (row[col] ~ "")|lower %}
+                                {% set cls = "modul-badge" %}
+                                {% if "alternativa" in modul %}
+                                  {% set cls = "modul-badge modul-alt" %}
+                                {% elif "core sverige" in modul %}
+                                  {% set cls = "modul-badge modul-cs" %}
+                                {% elif "core världen" in modul %}
+                                  {% set cls = "modul-badge modul-cv" %}
+                                {% elif "edge" in modul %}
+                                  {% set cls = "modul-badge modul-ed" %}
+                                {% elif "fixed income" in modul %}
+                                  {% set cls = "modul-badge modul-fi" %}
+                                {% elif "övrigt" in modul or "ovrigt" in modul %}
+                                  {% set cls = "modul-badge modul-ovrigt" %}
+                                {% endif %}
+                                <span class="{{ cls }}">{{ row[col] }}</span>
+                              {% else %}
+                                {{ format_cell(col, row[col]) }}
+                              {% endif %}
+                            </td>
+                          {% endfor %}
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  </div>
+                {% endif %}
+              </section>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <p>Inga innehav</p>
+          </div>
+        {% endif %}
+      {% endif %}
+    </main>
+  </body>
+</html>

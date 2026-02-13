@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E&P Portfolio Viewer - Ombalansering</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mandat" class="sidebar-link">Mandat</a>
+        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
+            Förvaltning <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
+            <a href="/edge" class="sidebar-link">Edge</a>
+            <a href="/alternativa" class="sidebar-link">Alternativa</a>
+            <a href="/core-varlden" class="sidebar-link">Core Världen</a>
+          </div>
+        </div>
+        <div class="sidebar-spacer"></div>
+        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
+          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
+        </form>
+                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+          <label class="sidebar-upload-button">
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
+            Välj Excel-fil
+          </label>
+          <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
+      </nav>
+    </aside>
+    <main class="page">
+      <div class="logo-wrap">
+        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+      </div>
+      <header class="header">
+        <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
+          <span class="menu-label">Menu</span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <div class="ombalansering-wrap">
+        <section class="sheet">
+        <div class="module-buttons">
+          <a class="module-btn{% if selected_modul == 'core-sverige' %} active{% endif %}" href="/ombalansering?modul=core-sverige{% if q %}&q={{ q }}{% endif %}">Core Sverige</a>
+          <a class="module-btn{% if selected_modul == 'core-varlden' %} active{% endif %}" href="/ombalansering?modul=core-varlden{% if q %}&q={{ q }}{% endif %}">Core Världen</a>
+          <a class="module-btn{% if selected_modul == 'edge' %} active{% endif %}" href="/ombalansering?modul=edge{% if q %}&q={{ q }}{% endif %}">Edge</a>
+          <a class="module-btn{% if selected_modul == 'alternativa' %} active{% endif %}" href="/ombalansering?modul=alternativa{% if q %}&q={{ q }}{% endif %}">Alternativa</a>
+          {% if selected_modul %}
+            <a class="module-btn export-btn" href="/ombalansering/export?modul={{ selected_modul }}">Exportera Excel</a>
+          {% endif %}
+        </div>
+          <form class="search" method="get" action="/ombalansering">
+            <input
+              type="text"
+              name="q"
+              value="{{ q }}"
+              placeholder="Filtrera på depånummer"
+              autocomplete="off"
+            />
+            {% if selected_modul %}
+              <input type="hidden" name="modul" value="{{ selected_modul }}" />
+            {% endif %}
+            <button type="submit">Filter</button>
+          </form>
+          <h2>Ombalansering{% if selected_label %} – {{ selected_label }}{% endif %}</h2>
+          {% if rows and rows|length > 0 %}
+            <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  {% for col in columns %}
+                    {% if col != "Mandat" %}
+                      <th>{{ col }}</th>
+                    {% endif %}
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    {% for col in columns %}
+                      {% if col != "Mandat" %}
+                        <td>
+                          {% if col == "Värde (sek)" %}
+                            {{ format_cell("Värde i SEK", row[col]) }}
+                          {% elif col == "Modell" %}
+                            {{ format_cell("Värde i SEK", row[col]) }}
+                          {% elif col == "vs modell" %}
+                            {{ format_cell("Värde i SEK", row[col]) }}
+                          {% else %}
+                            {{ format_cell(col, row[col]) }}
+                          {% endif %}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          {% else %}
+            <p class="empty">Välj en modul för att visa portföljer.</p>
+          {% endif %}
+        </section>
+        <aside class="small-table strategy-card">
+          <div class="strategy-header">
+            <div class="small-table-title">Strategisk Allokering</div>
+            <button class="strategy-edit" type="button" id="strategy-open">Ändra</button>
+          </div>
+          {% if strategi_items and strategi_items|length > 0 %}
+            <ul class="strategy-list">
+              {% for item in strategi_items %}
+                <li>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ format_cell("Alt", item.value) }}</strong>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">Inga data.</p>
+          {% endif %}
+        </aside>
+      </div>
+    </main>
+
+    <div class="modal-backdrop" id="strategy-backdrop"></div>
+    <div class="modal-card" id="strategy-modal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-header">
+        <h3>Strategisk Allokering</h3>
+        <button class="modal-close" type="button" id="strategy-close">Stäng</button>
+      </div>
+      {% if strategi_items and strategi_items|length > 0 %}
+        <form method="post" action="/strategi-update" class="strategy-form">
+          <ul>
+            {% for item in strategi_items %}
+              <li>
+                <span>{{ item.label }}</span>
+                <input type="hidden" name="key_{{ loop.index0 }}" value="{{ item.label }}" />
+                <input
+                  type="text"
+                  name="val_{{ loop.index0 }}"
+                  value="{{ item.value }}"
+                  inputmode="decimal"
+                />
+              </li>
+            {% endfor %}
+          </ul>
+          <button type="submit" class="strategy-save">Spara</button>
+        </form>
+      {% else %}
+        <p class="empty">Inga data.</p>
+      {% endif %}
+    </div>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const menuButton = document.getElementById("menu-button");
+
+      const openSidebar = () => {
+        sidebar.classList.add("open");
+        backdrop.classList.add("show");
+      };
+
+      const closeSidebar = () => {
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+      };
+
+      menuButton.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      const forvaltningToggle = document.querySelector(".sidebar-toggle");
+      if (forvaltningToggle) {
+        const targetId = forvaltningToggle.dataset.target;
+        const target = document.getElementById(targetId);
+        forvaltningToggle.addEventListener("click", () => {
+          if (target) {
+            target.classList.toggle("open");
+          }
+        });
+      }
+
+      const strategyOpen = document.getElementById("strategy-open");
+      const strategyModal = document.getElementById("strategy-modal");
+      const strategyBackdrop = document.getElementById("strategy-backdrop");
+      const strategyClose = document.getElementById("strategy-close");
+
+      const openStrategy = () => {
+        if (!strategyModal) return;
+        strategyModal.classList.add("open");
+        strategyBackdrop.classList.add("show");
+        strategyModal.setAttribute("aria-hidden", "false");
+      };
+
+      const closeStrategy = () => {
+        if (!strategyModal) return;
+        strategyModal.classList.remove("open");
+        strategyBackdrop.classList.remove("show");
+        strategyModal.setAttribute("aria-hidden", "true");
+      };
+
+      if (strategyOpen) {
+        strategyOpen.addEventListener("click", openStrategy);
+      }
+      if (strategyClose) {
+        strategyClose.addEventListener("click", closeStrategy);
+      }
+      if (strategyBackdrop) {
+        strategyBackdrop.addEventListener("click", closeStrategy);
+      }
+    </script>
+  </body>
+</html>

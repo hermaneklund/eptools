@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E&P Portfolio Viewer - Taggar</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mandat" class="sidebar-link">Mandat</a>
+        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
+            Förvaltning <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
+            <a href="/edge" class="sidebar-link">Edge</a>
+            <a href="/alternativa" class="sidebar-link">Alternativa</a>
+            <a href="/core-varlden" class="sidebar-link">Core Världen</a>
+          </div>
+        </div>
+        <div class="sidebar-spacer"></div>
+        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
+          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
+        </form>
+                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+          <label class="sidebar-upload-button">
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
+            Välj Excel-fil
+          </label>
+          <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
+      </nav>
+    </aside>
+    <main class="page">
+      <div class="logo-wrap">
+        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+      </div>
+      <header class="header">
+        <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
+          <span class="menu-label">Menu</span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <section class="sheet taggar-layout">
+        <div class="taggar-main">
+          <div class="sheet-header-row">
+            <h2>Taggar</h2>
+            <form method="post" action="/taggar-update-kurs" style="margin:0;">
+              <button type="submit" class="sidebar-button table-export">Hämta pris</button>
+            </form>
+          </div>
+          <form method="post" action="/taggar-save" class="taggar-form">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th></th>
+                    {% for col in columns %}
+                      <th class="{% if col == 'Kurs' %}kurs-col{% endif %}">{{ col }}</th>
+                    {% endfor %}
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in rows %}
+                    <tr class="taggar-row">
+                      <td class="table-actions-cell">
+                        <button type="button" class="taggar-edit" data-row="{{ row['row_id'] }}">✎</button>
+                        <button type="submit" class="taggar-save-row" name="row_id" value="{{ row['row_id'] }}">Spara</button>
+                      </td>
+                      {% for col in columns %}
+                        <td class="{% if col == 'Kurs' %}kurs-col{% endif %}">
+                          {% if col == "Modul" %}
+                            {% set modul = (row[col] ~ "")|lower %}
+                            {% set cls = "modul-badge" %}
+                            {% if "alternativa" in modul %}
+                              {% set cls = "modul-badge modul-alt" %}
+                            {% elif "core sverige" in modul %}
+                              {% set cls = "modul-badge modul-cs" %}
+                            {% elif "core världen" in modul %}
+                              {% set cls = "modul-badge modul-cv" %}
+                            {% elif "edge" in modul %}
+                              {% set cls = "modul-badge modul-ed" %}
+                            {% elif "fixed income" in modul %}
+                              {% set cls = "modul-badge modul-fi" %}
+                            {% elif "övrigt" in modul or "ovrigt" in modul %}
+                              {% set cls = "modul-badge modul-ovrigt" %}
+                            {% endif %}
+                            <span class="cell-readonly {{ cls }}">{{ row[col] }}</span>
+                          {% elif col == "FX" %}
+                            <span class="cell-readonly">{{ row[col] }}</span>
+                          {% else %}
+                            <span class="cell-readonly">{{ row[col] }}</span>
+                          {% endif %}
+                          {% if col != "FX" %}
+                            <input
+                              type="text"
+                              name="row__{{ row['row_id'] }}__{{ col }}"
+                              value="{{ row[col] }}"
+                              class="cell-edit"
+                              disabled
+                            />
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                      <td class="table-actions-cell">
+                        <button type="submit" class="taggar-delete" formaction="/taggar-delete" formmethod="post" name="row_id" value="{{ row['row_id'] }}">Ta bort</button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="taggar-new">
+                    <td></td>
+                    {% for col in columns %}
+                      <td>
+                        {% if col != "FX" %}
+                          <input type="text" name="new__{{ col }}" placeholder="Ny {{ col }}" />
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                    <td class="table-actions-cell">
+                      <button type="submit" class="taggar-add">Lägg till</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="sheet">
+        <div class="taggar-missing-grid">
+          <div class="small-table">
+            <div class="small-table-section">
+              <div class="small-table-title">Saknas i Taggar</div>
+              <ul>
+                {% for item in only_in_detaljerat %}
+                  <li>
+                    {{ item.name }}
+                    {% if item.instrument_type %}
+                      <span class="type-badge">{{ item.instrument_type }}</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+                {% if not only_in_detaljerat %}
+                  <li>Inga</li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+          <div class="small-table">
+            <div class="small-table-section">
+              <div class="small-table-title">Saknas i Detaljerat</div>
+              <ul>
+                {% for item in only_in_taggar %}
+                  <li>{{ item }}</li>
+                {% endfor %}
+                {% if not only_in_taggar %}
+                  <li>Inga</li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const menuButton = document.getElementById("menu-button");
+
+      const openSidebar = () => {
+        sidebar.classList.add("open");
+        backdrop.classList.add("show");
+      };
+
+      const closeSidebar = () => {
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+      };
+
+      menuButton.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      const forvaltningToggle = document.querySelector(".sidebar-toggle");
+      if (forvaltningToggle) {
+        const targetId = forvaltningToggle.dataset.target;
+        const target = document.getElementById(targetId);
+        forvaltningToggle.addEventListener("click", () => {
+          if (target) {
+            target.classList.toggle("open");
+          }
+        });
+      }
+
+      const rows = document.querySelectorAll(".taggar-row");
+      rows.forEach((row) => {
+        const editBtn = row.querySelector(".taggar-edit");
+        const saveBtn = row.querySelector(".taggar-save-row");
+        const inputs = row.querySelectorAll(".cell-edit");
+        const readonly = row.querySelectorAll(".cell-readonly");
+
+        const setEditing = (isEditing) => {
+          row.classList.toggle("editing", isEditing);
+          inputs.forEach((input) => {
+            input.disabled = !isEditing;
+          });
+          readonly.forEach((el) => {
+            el.style.display = isEditing ? "none" : "inline-block";
+          });
+        };
+
+        setEditing(false);
+
+        if (editBtn) {
+          editBtn.addEventListener("click", () => {
+            setEditing(true);
+            const first = row.querySelector(".cell-edit");
+            if (first) first.focus();
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

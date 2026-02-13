@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E&P Portfolio Viewer - Fixed Income</title>
+    <link rel="stylesheet" href="/static/style.css?v=1" />
+  </head>
+  <body>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mandat" class="sidebar-link">Mandat</a>
+        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
+            Förvaltning <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
+            <a href="/edge" class="sidebar-link">Edge</a>
+            <a href="/alternativa" class="sidebar-link">Alternativa</a>
+            <a href="/core-varlden" class="sidebar-link">Core Världen</a>
+          </div>
+        </div>
+        <div class="sidebar-spacer"></div>
+        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
+          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
+        </form>
+                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+          <label class="sidebar-upload-button">
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
+            Välj Excel-fil
+          </label>
+          <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
+      </nav>
+    </aside>
+    <main class="page">
+      <div class="logo-wrap">
+        <img src="/static/eplogo.png" alt="Ericsson & Partners logo" class="logo" />
+      </div>
+      <header class="header">
+        <button class="menu-button" id="menu-button" aria-label="Open menu" type="button">
+          <span class="menu-label">Menu</span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <section class="sheet fixed-income-main">
+          <h2>Fixed income</h2>
+          <div class="sheet-sum in-table-box">
+            <div>
+              <span>Kassa FI (Att köpa &gt; 1):</span>
+              <strong>{{ format_cell("Värde i SEK", kassa_fi_sum) }}</strong>
+            </div>
+            <div>
+              <span>Kassa (Matardepåer):</span>
+              <strong>{{ format_cell("Värde i SEK", kassa_fi_matardepo) }}</strong>
+            </div>
+          </div>
+          <div class="table-wrap fixed-income-table">
+            <table>
+              <thead>
+                <tr>
+                  {% for col in columns %}
+                    <th>
+                    {% if col == "Number" %}
+                      <a class="sort-arrow{% if sort_by == 'number' %} active{% endif %}" href="/fixed-income?sort_by=number">
+                        {{ col }} <span>↓</span>
+                      </a>
+                    {% elif col == "Att köpa" %}
+                      <a class="sort-arrow{% if sort_by == 'att_kopa' %} active{% endif %}" href="/fixed-income?sort_by=att_kopa">
+                        {{ col }} <span>↓</span>
+                      </a>
+                      {% elif col == "Kassa FI" %}
+                        <a class="sort-arrow{% if sort_by == 'kassa_fi' %} active{% endif %}" href="/fixed-income?sort_by=kassa_fi">
+                          {{ col }} <span>↓</span>
+                        </a>
+                      {% else %}
+                        {{ col }}
+                      {% endif %}
+                    </th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows if (row.get("Mandat","")|lower) != "matardepå" %}
+                  <tr>
+                    {% for col in columns %}
+                      <td>
+                      {% if col == "Kassa FI" %}
+                        {{ format_cell("Värde i SEK", row[col]) }}
+                        {% if row.get("Kassa FI Matardepå") %}
+                          <span class="kassa-fi-note">
+                            ({{ format_cell("Värde i SEK", row.get("Kassa FI Matardepå")) }})
+                          </span>
+                        {% endif %}
+                      {% else %}
+                        {{ format_cell(col, row[col]) }}
+                      {% endif %}
+                    </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+                {% if matardepo_rows and matardepo_rows|length > 0 %}
+                  <tr class="section-row">
+                    <td colspan="{{ columns|length }}">Matardepåer</td>
+                  </tr>
+                  {% for row in rows if (row.get("Mandat","")|lower) == "matardepå" %}
+                    <tr>
+                      {% for col in columns %}
+                        <td>
+                          {% if col == "Kassa FI" %}
+                            {{ format_cell("Värde i SEK", row[col]) }}
+                          {% else %}
+                            {{ format_cell(col, row[col]) }}
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+    </main>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const menuButton = document.getElementById("menu-button");
+
+      const openSidebar = () => {
+        sidebar.classList.add("open");
+        backdrop.classList.add("show");
+      };
+
+      const closeSidebar = () => {
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+      };
+
+      menuButton.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      const forvaltningToggle = document.querySelector(".sidebar-toggle");
+      if (forvaltningToggle) {
+        const targetId = forvaltningToggle.dataset.target;
+        const target = document.getElementById(targetId);
+        forvaltningToggle.addEventListener("click", () => {
+          if (target) {
+            target.classList.toggle("open");
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
