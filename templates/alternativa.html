@@ -38,13 +38,6 @@
           </label>
           <button type="submit" class="sidebar-button">Importera Excel</button>
         </form>
-        <form class="sidebar-form sidebar-import" method="post" action="/import-db" enctype="multipart/form-data">
-          <label class="sidebar-upload-button">
-            <input type="file" name="db_excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
-            V?lj DB-Excel
-          </label>
-          <button type="submit" class="sidebar-button">Importera DB Excel</button>
-        </form>
 
 
         <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
