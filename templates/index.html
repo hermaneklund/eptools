@@ -100,6 +100,13 @@
         });
       </script>
 
+      {% if not q %}
+        <section class="viewer-empty-state">
+          <p class="viewer-empty-title">Välkommen till Portföljöversikten 2.0!</p>
+          <p class="viewer-empty-subtitle">Skriv in ett depånummer och sök för att se info om portföljen.</p>
+        </section>
+      {% endif %}
+
       {% if dashboard %}
         <section class="dashboard overview-card">
           <div class="dash-header">

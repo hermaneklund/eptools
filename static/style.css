@@ -446,6 +446,26 @@ body {
   border-radius: 8px;
 }
 
+.viewer-empty-state {
+  margin: 120px auto 24px;
+  text-align: center;
+  max-width: 760px;
+  color: #1f2b24;
+}
+
+.viewer-empty-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.viewer-empty-subtitle {
+  margin: 8px 0 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
 .dashboard {
   margin-bottom: 32px;
   padding: 20px;
