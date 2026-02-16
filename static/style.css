@@ -446,6 +446,23 @@ body {
   border-radius: 8px;
 }
 
+.sheet-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sheet-header-row h2 {
+  margin: 0;
+  margin-right: auto;
+}
+
+.sheet-header-row .sidebar-button {
+  flex-shrink: 0;
+}
+
 .viewer-empty-state {
   margin: 120px auto 24px;
   text-align: center;
@@ -1351,6 +1368,13 @@ body {
   position: absolute;
   top: 16px;
   right: 16px;
+}
+
+.fixed-income-main .sheet-sum.in-table-box {
+  position: static;
+  text-align: right;
+  width: fit-content;
+  margin: 6px 0 10px auto;
 }
 
 .table-wrap {

@@ -2401,8 +2401,7 @@ def taggar(request: Request):
     )
 
 
-@app.get("/fixed-income", response_class=HTMLResponse)
-def fixed_income(request: Request, sort_by: str = "att_kopa"):
+def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
     mandat = _load_sheet("Mandat")
     detaljerat = _load_sheet("Detaljerat")
     taggar_df = _load_sheet("Taggar")
@@ -2586,18 +2585,53 @@ def fixed_income(request: Request, sort_by: str = "att_kopa"):
         if (_to_float(r.get("Att köpa", 0)) or 0) > 1
     )
 
+    return {
+        "columns": columns,
+        "rows": rows,
+        "sort_by": sort_key,
+        "kassa_fi_sum": kassa_fi_sum,
+        "kassa_fi_matardepo": kassa_fi_matardepo,
+        "matardepo_rows": matardepo_rows,
+    }
+
+
+@app.get("/fixed-income", response_class=HTMLResponse)
+def fixed_income(request: Request, sort_by: str = "att_kopa"):
+    ctx = _build_fixed_income_context(sort_by=sort_by)
     return templates.TemplateResponse(
         "fixed_income.html",
         {
             "request": request,
-            "columns": columns,
-            "rows": rows,
+            "columns": ctx["columns"],
+            "rows": ctx["rows"],
             "format_cell": format_cell,
-            "sort_by": sort_key,
-            "kassa_fi_sum": kassa_fi_sum,
-            "kassa_fi_matardepo": kassa_fi_matardepo,
-            "matardepo_rows": matardepo_rows,
+            "sort_by": ctx["sort_by"],
+            "kassa_fi_sum": ctx["kassa_fi_sum"],
+            "kassa_fi_matardepo": ctx["kassa_fi_matardepo"],
+            "matardepo_rows": ctx["matardepo_rows"],
         },
+    )
+
+
+@app.get("/fixed-income/export")
+def fixed_income_export(sort_by: str = "att_kopa"):
+    ctx = _build_fixed_income_context(sort_by=sort_by)
+    columns = ctx["columns"]
+    rows = ctx["rows"]
+
+    normal_rows = [r for r in rows if str(r.get("Mandat", "")).strip().lower() != "matardepå"]
+    matardepo_rows = [r for r in rows if str(r.get("Mandat", "")).strip().lower() == "matardepå"]
+    export_rows = normal_rows + matardepo_rows
+
+    export_df = pd.DataFrame(export_rows, columns=columns)
+    output = BytesIO()
+    export_df.to_excel(output, index=False, sheet_name="FixedIncome")
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=fixed_income.xlsx"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
     )
 
 
