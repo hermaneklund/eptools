@@ -531,6 +531,77 @@ body {
   border: 1px solid var(--border);
 }
 
+.overview-compliance-alert {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #d9d9d9;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: center;
+  cursor: default;
+  padding: 0;
+}
+
+.overview-compliance-tooltip {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #d9e0e6;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #1f2937;
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  pointer-events: none;
+}
+
+.overview-compliance-alert:hover .overview-compliance-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.overview-compliance-tooltip .tooltip-line {
+  margin: 0;
+}
+
+.overview-compliance-tooltip .tooltip-line + .tooltip-line {
+  margin-top: 4px;
+}
+
+.overview-compliance-tooltip .tooltip-line.tooltip-section-break {
+  margin-top: 10px;
+}
+
+.overview-compliance-alert.is-breach {
+  border-color: #c86a6a;
+  background: #d98989;
+  color: #ffffff;
+}
+
+.overview-compliance-alert.is-ok {
+  border-color: #6aa979;
+  background: #7dbb8c;
+  color: #ffffff;
+}
+
 .dash-header h2 {
   margin: 0 0 12px;
   font-size: 24px;

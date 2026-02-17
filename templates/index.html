@@ -110,6 +110,18 @@
 
       {% if dashboard %}
         <section class="dashboard overview-card">
+          <button
+            type="button"
+            class="overview-compliance-alert {% if overview_compliance_breaches %}is-breach{% else %}is-ok{% endif %}"
+            aria-label="{% if overview_compliance_breaches %}Compliance breach{% else %}Compliance ok{% endif %}"
+          >
+            {% if overview_compliance_breaches %}!{% else %}✓{% endif %}
+            <div class="overview-compliance-tooltip" role="tooltip">
+              {% for line in overview_compliance_tooltip_lines %}
+                <div class="tooltip-line{% if line == 'Avvikelser:' %} tooltip-section-break{% endif %}">{{ line }}</div>
+              {% endfor %}
+            </div>
+          </button>
           <div class="dash-header">
             <div class="header-left">
               <h2>{{ dashboard.Kund }}</h2>

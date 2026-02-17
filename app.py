@@ -742,6 +742,64 @@ def _build_compliance_rows(rows: list[dict], number_col: str) -> list[dict]:
     return compliance_rows
 
 
+def _get_compliance_breaches_for_number(number: str) -> list[str]:
+    normalized_number = _normalize_number_value(number)
+    if not normalized_number:
+        return []
+    rows, number_col = _prepare_mandat_rows_for_compliance(normalized_number)
+    if not rows:
+        return []
+    compliance_rows = _build_compliance_rows(rows, number_col)
+    breaches: list[str] = []
+    seen: set[str] = set()
+    for row in compliance_rows:
+        rule = str(row.get("Rule", "")).strip()
+        reason = str(row.get("Innehav", "")).strip()
+        text = f"{rule}: {reason}" if reason else rule
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        breaches.append(text)
+    return breaches
+
+
+def _get_mandat_rules_text(mandat_value: str) -> list[str]:
+    mandat = str(mandat_value or "").strip().lower()
+    if mandat == "ränta":
+        return [
+            "Akt/Alt !=0 (ingen aktie- eller alternativa-exponering)",
+            "EI>20% (enskilt innehav exkl. valuta <= 20%)",
+        ]
+    if mandat == "balanserad defensiv":
+        return [
+            "Aktier <= 25%",
+            "Alternativa <= 25%",
+            "RG7 <= 10%",
+            "EI>20% (enskilt innehav exkl. valuta <= 20%)",
+        ]
+    if mandat == "balanserad offensiv":
+        return [
+            "Aktier <= 75%",
+            "Alternativa <= 50%",
+            "RG7<=25%",
+            "EI>20% (enskilt innehav exkl. valuta <= 20%)",
+        ]
+    if mandat == "offensiv":
+        return [
+            "Aktier <= 75%",
+            "Alternativa <= 50%",
+            "EI>20% (enskilt innehav exkl. valuta <= 20%)",
+        ]
+    if mandat == "aktier":
+        return [
+            "Rä!=0 (fixed income ska vara 0)",
+            "Alt!=0 (alternativa ska vara 0)",
+            "RG7<=25%",
+            "EI>20% (enskilt innehav exkl. valuta <= 20%)",
+        ]
+    return ["EI>20% (enskilt innehav exkl. valuta <= 20%)"]
+
+
 TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Modellnamn", "Api", "Sektor", "FX"]
 MANDAT_BOOL_COLUMNS = ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0"]
 
@@ -1852,6 +1910,9 @@ def index(request: Request, q: str = ""):
     portfolio_modul_counts = {}
     missing_by_modul = {}
     has_holdings = False
+    overview_compliance_breaches: list[str] = []
+    overview_compliance_tooltip = ""
+    overview_compliance_tooltip_lines: list[str] = []
     dyn_df = _load_mandat_dyn()
     value_series = None
     flags_df = _load_mandat_flags()
@@ -1959,6 +2020,9 @@ def index(request: Request, q: str = ""):
                 "number_suggestions": number_suggestions,
                 "format_cell": format_cell,
                 "format_percent": format_percent,
+                "overview_compliance_breaches": overview_compliance_breaches,
+                "overview_compliance_tooltip": overview_compliance_tooltip,
+                "overview_compliance_tooltip_lines": overview_compliance_tooltip_lines,
             },
         )
 
@@ -2313,6 +2377,17 @@ def index(request: Request, q: str = ""):
                     )
                     related_numbers = [n for n in related_numbers if n != number]
 
+    if dashboard and dashboard.get("Number"):
+        overview_compliance_breaches = _get_compliance_breaches_for_number(
+            str(dashboard.get("Number", ""))
+        )
+        rules = _get_mandat_rules_text(str(dashboard.get("Mandat", "")))
+        tooltip_lines = ["Regler:"] + [f"- {r}" for r in rules]
+        if overview_compliance_breaches:
+            tooltip_lines += ["", "Avvikelser:"] + [f"- {b}" for b in overview_compliance_breaches]
+        overview_compliance_tooltip = "\n".join(tooltip_lines)
+        overview_compliance_tooltip_lines = [line for line in tooltip_lines if str(line).strip() != ""]
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -2345,6 +2420,9 @@ def index(request: Request, q: str = ""):
             "number_suggestions": number_suggestions,
             "format_cell": format_cell,
             "format_percent": format_percent,
+            "overview_compliance_breaches": overview_compliance_breaches,
+            "overview_compliance_tooltip": overview_compliance_tooltip,
+            "overview_compliance_tooltip_lines": overview_compliance_tooltip_lines,
         },
     )
 
