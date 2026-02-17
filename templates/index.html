@@ -11,6 +11,7 @@
     <aside class="sidebar" id="sidebar">
       <nav class="sidebar-nav">
         <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mina-kunder" class="sidebar-link">Mina kunder</a>
         <a href="/mandat" class="sidebar-link">Mandat</a>
         <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
         <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
@@ -183,8 +184,8 @@
               </div>
               <div>{{ format_cell("Alt", alternativa_share) }}</div>
               <div>{{ format_cell("Alt", allocation.Alt) }}</div>
-              <div>{{ portfolio_modul_counts.get("alternativa", 0) }}</div>
-              <div>{{ model_modul_counts.get("alternativa", 0) }}</div>
+              <div>{{ format_cell("count", portfolio_modul_counts.get("alternativa", 0)) }}</div>
+              <div>{{ format_cell("count", model_modul_counts.get("alternativa", 0)) }}</div>
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("alternativa", 0)) }}</div>
             </div>
             {% set missing = missing_by_modul.get("core sverige") %}
@@ -197,8 +198,8 @@
               </div>
               <div>{{ format_cell("CS", core_sverige_share) }}</div>
               <div>{{ format_cell("CS", allocation.CS) }}</div>
-              <div>{{ portfolio_modul_counts.get("core sverige", 0) }}</div>
-              <div>{{ model_modul_counts.get("core sverige", 0) }}</div>
+              <div>{{ format_cell("count", portfolio_modul_counts.get("core sverige", 0)) }}</div>
+              <div>{{ format_cell("count", model_modul_counts.get("core sverige", 0)) }}</div>
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("core sverige", 0)) }}</div>
             </div>
             {% set missing = missing_by_modul.get("core världen") %}
@@ -211,8 +212,8 @@
               </div>
               <div>{{ format_cell("CV", core_varlden_share) }}</div>
               <div>{{ format_cell("CV", allocation.CV) }}</div>
-              <div>{{ portfolio_modul_counts.get("core världen", 0) }}</div>
-              <div>{{ model_modul_counts.get("core världen", 0) }}</div>
+              <div>{{ format_cell("count", portfolio_modul_counts.get("core världen", 0)) }}</div>
+              <div>{{ format_cell("count", model_modul_counts.get("core världen", 0)) }}</div>
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("core världen", 0)) }}</div>
             </div>
             {% set missing = missing_by_modul.get("edge") %}
@@ -225,8 +226,8 @@
               </div>
               <div>{{ format_cell("Ed", edge_share) }}</div>
               <div>{{ format_cell("Ed", allocation.Ed) }}</div>
-              <div>{{ portfolio_modul_counts.get("edge", 0) }}</div>
-              <div>{{ model_modul_counts.get("edge", 0) }}</div>
+              <div>{{ format_cell("count", portfolio_modul_counts.get("edge", 0)) }}</div>
+              <div>{{ format_cell("count", model_modul_counts.get("edge", 0)) }}</div>
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("edge", 0)) }}</div>
             </div>
             {% set missing = missing_by_modul.get("fixed income") %}
@@ -234,7 +235,7 @@
               <div><span class="alloc-link-spacer" aria-hidden="true"></span>Fixed Income</div>
               <div>{{ format_cell("Alt", fixed_income_share) }}</div>
               <div>{{ format_cell("Alt", fixed_income_model) }}</div>
-              <div>{{ portfolio_modul_counts.get("fixed income", 0) }}</div>
+              <div>{{ format_cell("count", portfolio_modul_counts.get("fixed income", 0)) }}</div>
               <div></div>
               <div>{{ format_cell("Värde i SEK", post_by_modul.get("fixed income", 0)) }}</div>
             </div>

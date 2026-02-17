@@ -2635,6 +2635,169 @@ def fixed_income_export(sort_by: str = "att_kopa"):
     )
 
 
+@app.get("/mina-kunder", response_class=HTMLResponse)
+def mina_kunder(request: Request, advisor: str = ""):
+    mandat = _load_sheet("Mandat")
+    detaljerat = _load_sheet("Detaljerat")
+    taggar_df = _load_sheet("Taggar")
+
+    if mandat.empty:
+        return templates.TemplateResponse(
+            "mina_kunder.html",
+            {
+                "request": request,
+                "rows": [],
+                "columns": [],
+                "advisor": advisor,
+                "advisor_options": [],
+                "format_cell": format_cell,
+                "format_percent": format_percent,
+            },
+        )
+
+    number_col = "Number" if "Number" in mandat.columns else "Nummer"
+    kund_col = "Kund" if "Kund" in mandat.columns else ""
+    mandat_col = "Mandat" if "Mandat" in mandat.columns else ""
+    advisor_col = "Rådgivare" if "Rådgivare" in mandat.columns else ""
+
+    taggar_map: dict[str, dict] = {}
+    currency_map: dict[str, float] = {}
+    if not taggar_df.empty and "Short Name" in taggar_df.columns:
+        for _, row in taggar_df.iterrows():
+            key = _normalize_key(row.get("Short Name", ""))
+            if not key:
+                continue
+            taggar_map[key] = row.to_dict()
+            kurs = pd.to_numeric(row.get("Kurs", None), errors="coerce")
+            if pd.notna(kurs):
+                currency_map[key] = float(kurs)
+
+    advisor_options = []
+    if advisor_col and advisor_col in mandat.columns:
+        advisor_options = (
+            mandat[advisor_col]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .unique()
+            .tolist()
+        )
+        advisor_options = sorted(advisor_options)
+
+    rows = []
+    for _, mrow in mandat.iterrows():
+        number = str(mrow.get(number_col, "")).strip()
+        if not number:
+            continue
+        radgivare = str(mrow.get(advisor_col, "")).strip() if advisor_col else ""
+        if advisor and radgivare != advisor:
+            continue
+
+        details = detaljerat[detaljerat["Number"].astype(str).str.strip() == number] if "Number" in detaljerat.columns else detaljerat.head(0)
+        holdings_total = 0.0
+        valuta_total = 0.0
+        alternativa_share = 0.0
+        cs_share = 0.0
+        cv_share = 0.0
+        ed_share = 0.0
+        fi_share = 0.0
+        ovrigt_share = 0.0
+
+        if not details.empty:
+            modul = details["Short Name"].apply(
+                lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
+            ).astype(str).str.strip().str.lower()
+            modul = modul.replace({"": "övrigt", "nan": "övrigt"})
+
+            counts = pd.to_numeric(details.get("Available Count", pd.Series([0] * len(details))), errors="coerce")
+            prices = pd.to_numeric(details.get("Price", pd.Series([0] * len(details))), errors="coerce")
+            base_value = counts * prices
+            base_value = base_value.where(modul != "fixed income", base_value / 100)
+
+            if "Currency" in details.columns:
+                rates = details["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+                base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
+
+            holdings_total = float(base_value.sum(skipna=True) or 0.0)
+            alt_total = float(base_value.where(modul == "alternativa").sum(skipna=True) or 0.0)
+            cs_total = float(base_value.where(modul == "core sverige").sum(skipna=True) or 0.0)
+            cv_total = float(base_value.where(modul == "core världen").sum(skipna=True) or 0.0)
+            ed_total = float(base_value.where(modul == "edge").sum(skipna=True) or 0.0)
+            fi_total = float(base_value.where(modul == "fixed income").sum(skipna=True) or 0.0)
+            ovrigt_total = float(base_value.where(modul == "övrigt").sum(skipna=True) or 0.0)
+
+            tillgang = details["Short Name"].apply(
+                lambda s: taggar_map.get(_normalize_key(s), {}).get("Tillgångsslag", "")
+            ).astype(str).str.strip()
+            if "Instrument Type" in details.columns:
+                fallback = (
+                    details["Instrument Type"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .map({"share": "Aktier", "bond": "Ränta", "fund": "Aktier", "etf": "Aktier"})
+                    .fillna("")
+                )
+                tillgang = tillgang.where(tillgang != "", fallback)
+            valuta_total = float(base_value.where(tillgang.str.lower() == "valuta").sum(skipna=True) or 0.0)
+
+            if holdings_total:
+                alternativa_share = alt_total / holdings_total
+                cs_share = cs_total / holdings_total
+                cv_share = cv_total / holdings_total
+                ed_share = ed_total / holdings_total
+                fi_share = fi_total / holdings_total
+                ovrigt_share = ovrigt_total / holdings_total
+
+        rows.append(
+            {
+                "Number": number,
+                "Kund": str(mrow.get(kund_col, "")).strip() if kund_col else "",
+                "Mandat": str(mrow.get(mandat_col, "")).strip() if mandat_col else "",
+                "Rådgivare": radgivare,
+                "Alt": alternativa_share,
+                "CS": cs_share,
+                "CV": cv_share,
+                "Ed": ed_share,
+                "FI": fi_share,
+                "Övr.": ovrigt_share,
+                "Kassa": valuta_total,
+                "Värde": holdings_total,
+            }
+        )
+
+    rows = sorted(rows, key=lambda r: (_to_float(r.get("Värde", 0)) or 0), reverse=True)
+    columns = [
+        "Number",
+        "Kund",
+        "Mandat",
+        "Rådgivare",
+        "Alt",
+        "CS",
+        "CV",
+        "Ed",
+        "FI",
+        "Övr.",
+        "Kassa",
+        "Värde",
+    ]
+
+    return templates.TemplateResponse(
+        "mina_kunder.html",
+        {
+            "request": request,
+            "rows": rows,
+            "columns": columns,
+            "advisor": advisor,
+            "advisor_options": advisor_options,
+            "format_cell": format_cell,
+            "format_percent": format_percent,
+        },
+    )
+
+
 @app.get("/ombalansering", response_class=HTMLResponse)
 def ombalansering(request: Request, modul: str = "", q: str = ""):
     mandat = _load_sheet("Mandat")

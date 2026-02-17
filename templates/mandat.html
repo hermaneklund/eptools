@@ -11,6 +11,7 @@
     <aside class="sidebar" id="sidebar">
       <nav class="sidebar-nav">
         <a href="/" class="sidebar-link">Portfolio Viewer</a>
+        <a href="/mina-kunder" class="sidebar-link">Mina kunder</a>
         <a href="/taggar" class="sidebar-link">Taggar</a>
         <a href="/mandat" class="sidebar-link">Mandat</a>
         <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
@@ -131,7 +132,14 @@
                       <button type="submit" class="taggar-add" formaction="/mandat-add" formmethod="post" form="mandat-add-form">Lägg till</button>
                     </td>
                   </tr>
+                  {% set ns = namespace(has_matardepo=false) %}
                   {% for row in rows %}
+                    {% if row.get("Mandat", "")|lower == "matardepå" %}
+                      {% set ns.has_matardepo = true %}
+                    {% endif %}
+                  {% endfor %}
+
+                  {% for row in rows if row.get("Mandat", "")|lower != "matardepå" %}
                     {% if row.get("_row_class") == "spacer-row" %}
                       <tr class="spacer-row">
                         <td colspan="{{ columns|length + 2 }}"></td>
@@ -184,6 +192,55 @@
                     </tr>
                     {% endif %}
                   {% endfor %}
+
+                  {% if ns.has_matardepo %}
+                    <tr class="section-row">
+                      <td colspan="{{ columns|length + 2 }}">Matardepåer</td>
+                    </tr>
+                    {% for row in rows if row.get("Mandat", "")|lower == "matardepå" %}
+                      <tr class="mandat-row">
+                        <td class="table-actions-cell">
+                          <button type="button" class="taggar-edit mandat-edit">✎</button>
+                          <button type="submit" class="taggar-save-row mandat-save-row" name="row_id" value="{{ row['_row_key'] }}" data-rowkey="{{ row['_row_key'] }}">Spara</button>
+                        </td>
+                        {% for col in columns %}
+                          <td class="{% if loop.index0 >= (columns|length - 4) %}narrow-col{% endif %}{% if col == 'FI' or col in ['dynamisk','coresv','corevä','edge','alts'] %} fi-col{% endif %}">
+                            {% set editable = loop.index0 < 23 or loop.index0 >= (columns|length - 4) or col in ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0", "Placeringsriktlinjer"] %}
+                            {% set is_bool = col in ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0", "Placeringsriktlinjer"] %}
+                            {% if is_bool %}
+                              <input
+                                type="checkbox"
+                                name="row__{{ row['_row_key'] }}__{{ col }}"
+                                value="1"
+                                {% if row[col] in [1, "1", True, "True", "true"] %}checked{% endif %}
+                                class="cell-edit"
+                                {% if not editable %}disabled{% endif %}
+                              />
+                              <span class="cell-readonly">{{ format_cell(col, row[col]) }}</span>
+                            {% else %}
+                              {% if col == "Number" %}
+                                <span class="cell-readonly"><a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a></span>
+                              {% else %}
+                                <span class="cell-readonly">{{ format_cell(col, row[col]) }}</span>
+                              {% endif %}
+                              {% if editable %}
+                                <input
+                                  type="text"
+                                  name="row__{{ row['_row_key'] }}__{{ col }}"
+                                  value="{{ row[col] }}"
+                                  class="cell-edit"
+                                  disabled
+                                />
+                              {% endif %}
+                            {% endif %}
+                          </td>
+                        {% endfor %}
+                        <td class="table-actions-cell">
+                          <button type="submit" class="taggar-delete" formaction="/mandat-delete" formmethod="post" name="row_id" value="{{ row['_row_key'] }}" data-rowkey="{{ row['_row_key'] }}">Ta bort</button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  {% endif %}
                 </tbody>
               </table>
             </div>

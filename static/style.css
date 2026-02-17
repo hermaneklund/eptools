@@ -454,6 +454,34 @@ body {
   gap: 12px;
 }
 
+.mini-filter-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-filter-select {
+  width: 190px;
+  max-width: 190px;
+  border: 1px solid rgba(30, 42, 36, 0.2);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1e2a24;
+}
+
+.customer-filter-select:focus {
+  outline: none;
+  border-color: rgba(64, 112, 86, 0.65);
+  box-shadow: 0 0 0 2px rgba(111, 155, 130, 0.2);
+}
+
+.customer-filter-button {
+  width: auto;
+  min-width: 120px;
+}
+
 .sheet-header-row h2 {
   margin: 0;
   margin-right: auto;
