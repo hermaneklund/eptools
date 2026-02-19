@@ -14,25 +14,29 @@
         <a href="/mina-kunder" class="sidebar-link">Mina kunder</a>
         <a href="/mandat" class="sidebar-link">Mandat</a>
         <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
-        <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
-        <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
-        <a href="/taggar" class="sidebar-link">Taggar</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="portfoljhantering-subnav">
+            Portföljhantering <span class="caret">▾</span>
+          </button>
+          <div class="sidebar-subnav" id="portfoljhantering-subnav">
+            <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
+            <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+            <a href="/taggar" class="sidebar-link">Taggar</a>
+          </div>
+        </div>
         <div class="sidebar-group">
           <button type="button" class="sidebar-link sidebar-toggle" data-target="forvaltning-subnav">
             Förvaltning <span class="caret">▾</span>
           </button>
           <div class="sidebar-subnav" id="forvaltning-subnav">
+            <a href="/dashboard" class="sidebar-link">Dashboard</a>
             <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
             <a href="/edge" class="sidebar-link">Edge</a>
             <a href="/alternativa" class="sidebar-link">Alternativa</a>
             <a href="/core-varlden" class="sidebar-link">Core Världen</a>
-            <a href="/dashboard" class="sidebar-link">Dashboard</a>
           </div>
         </div>
         <div class="sidebar-spacer"></div>
-        <form class="sidebar-form sidebar-import" method="post" action="/models-update">
-          <button type="submit" class="sidebar-button">Uppdatera modeller</button>
-        </form>
                         <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
           <label class="sidebar-upload-button">
             <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
@@ -291,17 +295,15 @@
       });
 
       backdrop.addEventListener("click", closeSidebar);
-
-      const forvaltningToggle = document.querySelector(".sidebar-toggle");
-      if (forvaltningToggle) {
-        const targetId = forvaltningToggle.dataset.target;
-        const target = document.getElementById(targetId);
-        forvaltningToggle.addEventListener("click", () => {
-          if (target) {
-            target.classList.toggle("open");
-          }
+      const sidebarToggles = document.querySelectorAll(".sidebar-toggle");
+      sidebarToggles.forEach((toggle) => {
+        const targetId = toggle.dataset.target;
+        const subnav = document.getElementById(targetId);
+        if (!subnav) return;
+        toggle.addEventListener("click", () => {
+          subnav.classList.toggle("open");
         });
-      }
+      });
 
       const actionRows = document.querySelectorAll(".actions-row");
       actionRows.forEach((row) => {

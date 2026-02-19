@@ -1540,6 +1540,12 @@ body {
   padding-left: 12px;
 }
 
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0 8px;
+}
+
 .dashboard-perf-table {
   width: 100%;
   table-layout: fixed;
