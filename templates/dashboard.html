@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>E&P Portfolio Viewer - Mina kunder</title>
+    <title>E&P Förvaltning Dashboard</title>
     <link rel="stylesheet" href="/static/style.css?v=2" />
   </head>
   <body>
@@ -60,87 +60,121 @@
       </header>
 
       <section class="sheet">
-        <div class="sheet-header-row">
-          <h2>Mina kunder</h2>
-          <form method="get" action="/mina-kunder" class="mini-filter-form">
-            <select name="advisor" class="customer-filter-select">
-              <option value="">Alla rådgivare</option>
-              {% for item in advisor_options %}
-                <option value="{{ item }}" {% if advisor == item %}selected{% endif %}>{{ item }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="sidebar-button customer-filter-button">Filtrera</button>
-          </form>
-        </div>
-
         <div class="table-wrap">
-          <table>
+          <table class="dashboard-perf-table">
             <thead>
               <tr>
-                {% for col in columns %}
-                  <th>{{ col }}</th>
+                <th class="perf-label-col">Performance YTD</th>
+                {% for row in ytd_rows %}
+                  <th class="perf-model-col">{{ row.Model }}</th>
                 {% endfor %}
               </tr>
             </thead>
             <tbody>
-              {% for row in rows %}
-                <tr>
-                  {% for col in columns %}
-                    <td>
-                      {% if col == "Number" %}
-                        <a href="/?q={{ row[col] }}" class="number-link">{{ row[col] }}</a>
-                      {% elif col in ["Alt", "CS", "CV", "Ed", "FI", "Övr."] %}
-                        {{ format_percent(row[col]) }}
-                      {% elif col in ["Kassa", "Värde"] %}
-                        {{ format_cell("Värde i SEK", row[col]) }}
-                      {% else %}
-                        {{ row[col] }}
-                      {% endif %}
-                    </td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
+              <tr>
+                <td class="perf-label-col">Modul</td>
+                {% for row in ytd_rows %}
+                  <td class="perf-model-col">{% if row.ModelYTD is not none %}{{ format_percent_1(row.ModelYTD) }}{% endif %}</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td class="perf-label-col">Index</td>
+                {% for row in ytd_rows %}
+                  {% set idx = row.Index1YTD if row.Index1YTD is not none else row.Index2YTD %}
+                  <td class="perf-model-col">{% if idx is not none %}{{ format_percent_1(idx) }}{% endif %}</td>
+                {% endfor %}
+              </tr>
             </tbody>
           </table>
         </div>
       </section>
+
+      <section class="sheet">
+        <div class="model-donut-grid">
+          {% for table in model_tables %}
+            <div class="donut-panel">
+              <div id="dashboard-donut-{{ loop.index0 }}" style="height:300px; width:100%;"></div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
     </main>
 
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script>
       const sidebar = document.getElementById("sidebar");
       const backdrop = document.getElementById("sidebar-backdrop");
       const menuButton = document.getElementById("menu-button");
-
       const openSidebar = () => {
         sidebar.classList.add("open");
         backdrop.classList.add("show");
       };
-
       const closeSidebar = () => {
         sidebar.classList.remove("open");
         backdrop.classList.remove("show");
       };
-
       menuButton.addEventListener("click", () => {
-        if (sidebar.classList.contains("open")) {
-          closeSidebar();
-        } else {
-          openSidebar();
-        }
+        if (sidebar.classList.contains("open")) closeSidebar();
+        else openSidebar();
       });
-
       backdrop.addEventListener("click", closeSidebar);
 
       const forvaltningToggle = document.querySelector(".sidebar-toggle");
       if (forvaltningToggle) {
         const targetId = forvaltningToggle.dataset.target;
-        const target = document.getElementById(targetId);
+        const subnav = document.getElementById(targetId);
         forvaltningToggle.addEventListener("click", () => {
-          if (target) {
-            target.classList.toggle("open");
-          }
+          subnav.classList.toggle("open");
         });
+        subnav.classList.add("open");
       }
+
+      const donutModels = {{ model_tables | tojson }};
+      const donutPalette = [
+        "#005F02",
+        "#427A43",
+        "#629FAD",
+        "#C0B87A",
+        "#F2E3BB",
+        "#296374",
+        "#0C2C55",
+        "#EDEDCE",
+        "#5A9CB5",
+        "#41644A",
+        "#9E3B3B",
+        "#D25353",
+        "#EA7B7B",
+        "#FFEAD3"
+      ];
+      donutModels.forEach((model, idx) => {
+        const target = document.getElementById(`dashboard-donut-${idx}`);
+        if (!target) return;
+        const points = Array.isArray(model.donut_points) ? model.donut_points : [];
+        const sorted = [...points].sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+        const labelsFull = sorted.map(p => String(p.label || ""));
+        const labels = labelsFull.map(v => v.length > 8 ? v.slice(0, 8) : v);
+        const values = sorted.map(p => Number(p.value || 0));
+        if (!labels.length) {
+          target.innerHTML = '<div style="color:#6b7280;font-size:13px;padding:28px 0;text-align:center;">Inga innehav</div>';
+          return;
+        }
+        Plotly.newPlot(target, [{
+          type: "bar",
+          x: labels,
+          y: values,
+          customdata: labelsFull,
+          marker: { color: labels.map((_, i) => donutPalette[i % donutPalette.length]) },
+          hovertemplate: "%{customdata}<br>%{y:.1%}<extra></extra>"
+        }], {
+          margin: { l: 58, r: 16, t: 20, b: 92 },
+          showlegend: false,
+          title: { text: model.title, x: 0.5, xanchor: "center", y: 0.98, font: { size: 12, color: "#334155" } },
+          xaxis: { tickangle: -35, tickfont: { size: 10 } },
+          yaxis: { tickformat: ".0%", rangemode: "tozero" },
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)"
+        }, { displayModeBar: false, responsive: true });
+      });
     </script>
   </body>
 </html>

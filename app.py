@@ -1665,6 +1665,183 @@ def _latest_nettokassa(actions: pd.DataFrame) -> float | None:
     return float(temp["Nettokassa"].iloc[-1])
 
 
+def _load_first_existing_table(candidates: list[str]) -> pd.DataFrame:
+    for table in candidates:
+        df = _load_sheet_from_db(table)
+        if not df.empty:
+            return df
+    return pd.DataFrame()
+
+
+def _compute_series_ytd(data_df: pd.DataFrame, series_col: str) -> float | None:
+    if data_df.empty or "Datum" not in data_df.columns or series_col not in data_df.columns:
+        return None
+    df = data_df.copy()
+    df["Datum"] = _parse_date_series(df["Datum"])
+    df = df.dropna(subset=["Datum"])
+    if df.empty:
+        return None
+    df["Year"] = df["Datum"].dt.year
+    series = pd.to_numeric(df[series_col], errors="coerce")
+    latest_year = df["Year"].max()
+    if pd.isna(latest_year):
+        return None
+    latest_year = int(latest_year)
+    cur_vals = series[df["Year"] == latest_year].dropna()
+    prev_vals = series[df["Year"] == (latest_year - 1)].dropna()
+    if cur_vals.empty or prev_vals.empty:
+        return None
+    cur_last = cur_vals.iloc[-1]
+    prev_last = prev_vals.iloc[-1]
+    if prev_last == 0:
+        return None
+    return (cur_last / prev_last) - 1
+
+
+def _build_model_holdings_rows(actions_df: pd.DataFrame) -> list[dict]:
+    if actions_df.empty or "Värdepapper" not in actions_df.columns or "Antal" not in actions_df.columns:
+        return []
+
+    try:
+        taggar_df = _load_taggar_table()
+    except Exception:
+        taggar_df = pd.DataFrame()
+
+    kurs_by_verdepapper: dict[str, float | None] = {}
+    fx_by_verdepapper: dict[str, str] = {}
+    currency_kurs_map: dict[str, float | None] = {}
+    if not taggar_df.empty:
+        if "Short Name" in taggar_df.columns and "Kurs" in taggar_df.columns:
+            currency_map = (
+                taggar_df[["Short Name", "Kurs"]]
+                .dropna()
+                .assign(short=lambda d: d["Short Name"].astype(str).str.strip())
+            )
+            currency_map = currency_map[currency_map["short"] != ""]
+            currency_kurs_map = dict(
+                zip(currency_map["short"], currency_map["Kurs"].apply(_to_float))
+            )
+        if "Modellnamn" in taggar_df.columns:
+            if "Kurs" in taggar_df.columns:
+                kurs_map = (
+                    taggar_df[["Modellnamn", "Kurs"]]
+                    .dropna()
+                    .assign(modell=lambda d: d["Modellnamn"].astype(str).str.strip())
+                )
+                kurs_map = kurs_map[kurs_map["modell"] != ""]
+                kurs_by_verdepapper = dict(
+                    zip(
+                        kurs_map["modell"].str.casefold(),
+                        kurs_map["Kurs"].apply(_to_float),
+                    )
+                )
+            if "FX" in taggar_df.columns:
+                fx_map = (
+                    taggar_df[["Modellnamn", "FX"]]
+                    .dropna()
+                    .assign(modell=lambda d: d["Modellnamn"].astype(str).str.strip())
+                )
+                fx_map = fx_map[fx_map["modell"] != ""]
+                fx_by_verdepapper = dict(
+                    zip(fx_map["modell"].str.casefold(), fx_map["FX"])
+                )
+
+    actions = actions_df.copy()
+    actions["Värdepapper"] = actions["Värdepapper"].astype(str).str.strip()
+    actions["Värdepapper_norm"] = actions["Värdepapper"].str.casefold()
+    actions["Antal"] = _to_float_series(actions["Antal"]).fillna(0)
+    if "Datum" in actions.columns:
+        actions["Datum"] = pd.to_datetime(actions["Datum"], errors="coerce")
+        actions = actions.sort_values(by="Datum")
+    if "Kurs" in actions.columns:
+        actions["Kurs"] = _to_float_series(actions["Kurs"]).fillna(0)
+
+    gav_by_verdepapper: dict[str, float] = {}
+    nettokassa = _latest_nettokassa(actions)
+    for name, group in actions.groupby("Värdepapper_norm"):
+        position = 0.0
+        cost = 0.0
+        for _, row in group.iterrows():
+            qty = _to_float(row.get("Antal", 0)) or 0
+            price = _to_float(row.get("Kurs", 0)) or 0
+            if qty > 0:
+                cost += qty * price
+                position += qty
+            elif qty < 0 and position > 0:
+                sell_qty = min(position, abs(qty))
+                avg_cost = cost / position if position else 0
+                cost -= avg_cost * sell_qty
+                position -= sell_qty
+            if position <= 0:
+                position = 0.0
+                cost = 0.0
+        gav_by_verdepapper[name] = (cost / position) if position else 0
+
+    holdings = (
+        actions.groupby("Värdepapper_norm", dropna=False)["Antal"]
+        .sum()
+        .reset_index()
+    )
+    name_map = (
+        actions.dropna(subset=["Värdepapper_norm"])
+        .groupby("Värdepapper_norm")["Värdepapper"]
+        .first()
+        .to_dict()
+    )
+    holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
+    holdings = holdings[holdings["Antal"] != 0]
+    holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
+    holdings_rows = holdings.to_dict(orient="records")
+
+    if nettokassa is not None:
+        holdings_rows = [
+            r
+            for r in holdings_rows
+            if str(r.get("Värdepapper", "")).strip().upper() not in {"KASSA", "SEK"}
+        ]
+        holdings_rows.append({"Värdepapper": "Kassa", "Antal": nettokassa})
+
+    for row in holdings_rows:
+        name = str(row.get("Värdepapper", "")).strip()
+        name_norm = name.casefold()
+        if name.upper() == "KASSA":
+            row["Kurs"] = 1
+            row["FX"] = "SEK"
+            row["Värde"] = _to_float(row.get("Antal", 0)) or 0
+            row["Utv"] = 0
+            continue
+        kurs = kurs_by_verdepapper.get(name_norm, None)
+        fx_code = str(fx_by_verdepapper.get(name_norm, "")).strip()
+        row["Kurs"] = kurs
+        row["FX"] = fx_code
+        fx_rate = _to_float(currency_kurs_map.get(fx_code, 1)) or 1
+        value = (row.get("Antal", 0) or 0) * (kurs or 0) * fx_rate if kurs not in ("", None) else 0
+        row["Värde"] = value
+        gav_val = _to_float(gav_by_verdepapper.get(name_norm, 0)) or 0
+        kurs_val = _to_float(kurs) or 0
+        kurs_val_adj = kurs_val * fx_rate if fx_code.upper() not in {"", "SEK"} else kurs_val
+        row["Utv"] = (kurs_val_adj / gav_val - 1) if gav_val else 0
+
+    total_value = sum((_to_float(r.get("Värde", 0)) or 0) for r in holdings_rows)
+    for row in holdings_rows:
+        val = _to_float(row.get("Värde", 0)) or 0
+        row["Vikt"] = (val / total_value) if total_value else 0
+
+    cash_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() == "KASSA"]
+    other_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() != "KASSA"]
+    other_rows = sorted(other_rows, key=lambda r: _to_float(r.get("Vikt", 0)) or 0, reverse=True)
+    holdings_rows = other_rows + cash_rows
+
+    return [
+        {
+            "Holding": str(r.get("Värdepapper", "")).strip(),
+            "Utv": r.get("Utv", 0),
+            "Vikt": r.get("Vikt", 0),
+        }
+        for r in holdings_rows
+    ]
+
+
 def _append_model_action(table: str, payload: dict) -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     df = _load_sheet_from_db(table)
@@ -3673,6 +3850,86 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
             "sort_by": sort_by,
             "compliance": bool(compliance),
             "compliance_rows": compliance_rows,
+        },
+    )
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def model_dashboard(request: Request):
+    model_specs = [
+        {
+            "title": "Core Sverige",
+            "actions_tables": ["coresvactions", "CoreSvActions"],
+            "data_tables": ["coresvdata", "CoreSvData"],
+            "model_col": "CoreSverige",
+            "index_cols": ["OMXS30", "OMXSPI"],
+        },
+        {
+            "title": "Edge",
+            "actions_tables": ["edgeactions", "EdgeActions"],
+            "data_tables": ["edgedata", "EdgeData"],
+            "model_col": "Edge",
+            "index_cols": ["FirstNorth", "OMXSSCPI"],
+        },
+        {
+            "title": "Core Världen",
+            "actions_tables": ["corevactions", "CoreVActions"],
+            "data_tables": ["corevdata", "CoreVData"],
+            "model_col": "CoreVärlden",
+            "index_cols": ["MSCI World SEK"],
+        },
+        {
+            "title": "Alternativa",
+            "actions_tables": ["altactions", "AltActions"],
+            "data_tables": ["altdata", "AltData"],
+            "model_col": "Alternativa",
+            "index_cols": ["RLY SEK"],
+        },
+    ]
+
+    model_tables = []
+    ytd_rows = []
+
+    for spec in model_specs:
+        actions_df = _load_first_existing_table(spec["actions_tables"])
+        data_df = _load_first_existing_table(spec["data_tables"])
+        holdings_rows = _build_model_holdings_rows(actions_df)
+        donut_points = [
+            {
+                "label": str(r.get("Holding", "")).strip(),
+                "value": _to_float(r.get("Vikt", 0)) or 0,
+            }
+            for r in holdings_rows
+            if str(r.get("Holding", "")).strip()
+            and str(r.get("Holding", "")).strip().upper() != "KASSA"
+            and (_to_float(r.get("Vikt", 0)) or 0) > 0
+        ]
+        model_tables.append(
+            {
+                "title": spec["title"],
+                "rows": holdings_rows,
+                "donut_points": donut_points,
+            }
+        )
+
+        ytd_row = {
+            "Model": spec["title"],
+            "ModelYTD": _compute_series_ytd(data_df, spec["model_col"]),
+            "Index1Name": spec["index_cols"][0] if spec["index_cols"] else "",
+            "Index1YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
+            "Index2Name": spec["index_cols"][1] if len(spec["index_cols"]) > 1 else "",
+            "Index2YTD": _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None,
+        }
+        ytd_rows.append(ytd_row)
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {
+            "request": request,
+            "model_tables": model_tables,
+            "ytd_rows": ytd_rows,
+            "format_cell": format_cell,
+            "format_percent_1": format_percent_1,
         },
     )
 
