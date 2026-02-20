@@ -251,7 +251,7 @@
                     </thead>
                     <tbody>
                       {% for row in action_rows %}
-                        {% set editable_top = loop.index0 < 3 %}
+                        {% set editable_top = loop.revindex0 < 3 %}
                         <tr class="actions-row taggar-row">
                           {% for col in action_cols %}
                             <td class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">
