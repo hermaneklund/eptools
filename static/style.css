@@ -318,6 +318,80 @@ body {
   border-color: rgba(40, 80, 60, 0.7);
 }
 
+.vikt-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reweight-inline-form {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.reweight-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(40, 80, 60, 0.35);
+  background: #fff;
+  color: #1e2a24;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.reweight-arrow:hover {
+  border-color: rgba(40, 80, 60, 0.7);
+}
+
+.reweight-popover {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 6px;
+  box-shadow: var(--shadow);
+  z-index: 20;
+}
+
+.reweight-inline-form.open .reweight-popover {
+  display: inline-flex;
+}
+
+.reweight-target-input {
+  width: 58px;
+  border: 1px solid rgba(40, 80, 60, 0.25);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.reweight-apply,
+.reweight-cancel {
+  border: 1px solid rgba(40, 80, 60, 0.4);
+  background: #fff;
+  color: #1e2a24;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
 .actions-save-row {
   margin-left: 4px;
 }

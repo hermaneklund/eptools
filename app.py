@@ -1199,7 +1199,7 @@ def _model_total_from_actions(table: str) -> float:
         .reset_index()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"] != 0]
+    holdings = holdings[holdings["Antal"].abs() > 1e-8]
 
     total_value = 0.0
     for _, row in holdings.iterrows():
@@ -1631,7 +1631,7 @@ def _model_weights_for_modul(modul_label: str, taggar_df: pd.DataFrame) -> dict[
         .reset_index()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"] != 0]
+    holdings = holdings[holdings["Antal"].abs() > 1e-8]
 
     # taggar maps
     kurs_by_model = {}
@@ -1842,7 +1842,7 @@ def _build_model_holdings_rows(actions_df: pd.DataFrame) -> list[dict]:
         .to_dict()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"] != 0]
+    holdings = holdings[holdings["Antal"].abs() > 1e-8]
     holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
     holdings_rows = holdings.to_dict(orient="records")
 
@@ -4178,7 +4178,7 @@ def core_sverige(request: Request, ticker: str = ""):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"] != 0]
+        holdings = holdings[holdings["Antal"].abs() > 1e-8]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -4441,7 +4441,7 @@ def edge(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"] != 0]
+        holdings = holdings[holdings["Antal"].abs() > 1e-8]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -4566,6 +4566,120 @@ async def model_actions_add(request: Request):
     }
     _append_model_action(table, payload)
     return RedirectResponse(url=f"/{model}", status_code=303)
+
+
+@app.post("/model-actions-reweight")
+async def model_actions_reweight(request: Request):
+    form = await request.form()
+    model = (form.get("model") or "").strip().lower()
+    holding = str(form.get("holding") or "").strip()
+    target_raw = form.get("target_weight")
+    table_map = {
+        "core-sverige": "coresvactions",
+        "edge": "edgeactions",
+        "alternativa": "altactions",
+        "core-varlden": "corevactions",
+    }
+    table = table_map.get(model)
+    referer = request.headers.get("referer", f"/{model}" if model else "/")
+    if not table or not holding:
+        return RedirectResponse(referer, status_code=303)
+
+    target_weight = _to_float(target_raw)
+    if target_weight is None:
+        return RedirectResponse(referer, status_code=303)
+    if target_weight > 1:
+        target_weight = target_weight / 100.0
+    target_weight = max(0.0, min(1.0, target_weight))
+
+    actions = _load_sheet_from_db(table)
+    if actions.empty or "Värdepapper" not in actions.columns or "Antal" not in actions.columns:
+        return RedirectResponse(referer, status_code=303)
+    actions = actions.copy()
+    actions["Värdepapper"] = actions["Värdepapper"].astype(str).str.strip()
+    actions["Värdepapper_norm"] = actions["Värdepapper"].str.casefold()
+    actions["Antal"] = _to_float_series(actions["Antal"]).fillna(0)
+
+    holdings_qty = (
+        actions.groupby("Värdepapper_norm", dropna=False)["Antal"]
+        .sum()
+        .to_dict()
+    )
+
+    taggar_df = _load_taggar_table()
+    if taggar_df.empty or "Modellnamn" not in taggar_df.columns:
+        return RedirectResponse(referer, status_code=303)
+
+    kurs_by_model = {}
+    fx_by_model = {}
+    if "Kurs" in taggar_df.columns:
+        kurs_df = (
+            taggar_df[["Modellnamn", "Kurs"]]
+            .dropna()
+            .assign(modell=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold())
+        )
+        kurs_by_model = dict(zip(kurs_df["modell"], kurs_df["Kurs"].apply(_to_float)))
+    if "FX" in taggar_df.columns:
+        fx_df = (
+            taggar_df[["Modellnamn", "FX"]]
+            .dropna()
+            .assign(modell=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold())
+        )
+        fx_by_model = dict(zip(fx_df["modell"], fx_df["FX"].astype(str).str.strip()))
+
+    currency_rates = {}
+    if "Short Name" in taggar_df.columns and "Kurs" in taggar_df.columns:
+        cur_df = (
+            taggar_df[["Short Name", "Kurs"]]
+            .dropna()
+            .assign(short=lambda d: d["Short Name"].astype(str).str.strip())
+        )
+        currency_rates = dict(zip(cur_df["short"], cur_df["Kurs"].apply(_to_float)))
+
+    holding_key = holding.casefold()
+    price = _to_float(kurs_by_model.get(holding_key))
+    if price is None or price == 0:
+        return RedirectResponse(referer, status_code=303)
+    fx_code = str(fx_by_model.get(holding_key, "")).strip()
+    fx_rate = _to_float(currency_rates.get(fx_code, 1)) or 1.0
+    unit_value_sek = price * fx_rate
+    if unit_value_sek == 0:
+        return RedirectResponse(referer, status_code=303)
+
+    current_qty = _to_float(holdings_qty.get(holding_key, 0)) or 0.0
+    current_value = current_qty * unit_value_sek
+
+    portfolio_non_cash = 0.0
+    for key, qty in holdings_qty.items():
+        name = str(key or "").strip()
+        if name in {"", "kassa", "sek"}:
+            continue
+        k = _to_float(kurs_by_model.get(name))
+        if k is None:
+            continue
+        fx = str(fx_by_model.get(name, "")).strip()
+        rate = _to_float(currency_rates.get(fx, 1)) or 1.0
+        portfolio_non_cash += (_to_float(qty) or 0.0) * k * rate
+    cash_balance = _latest_nettokassa(actions) or 0.0
+    portfolio_total = portfolio_non_cash + cash_balance
+    if portfolio_total <= 0:
+        return RedirectResponse(referer, status_code=303)
+
+    target_value = target_weight * portfolio_total
+    delta_value = target_value - current_value
+    qty_delta = delta_value / unit_value_sek
+    if abs(qty_delta) < 1e-10:
+        return RedirectResponse(referer, status_code=303)
+
+    payload = {
+        "Datum": datetime.now().strftime("%Y-%m-%d"),
+        "Värdepapper": holding,
+        "Transaktionstyp": "Köp" if qty_delta > 0 else "Sälj",
+        "Antal": qty_delta,
+        "Kurs": unit_value_sek,
+    }
+    _append_model_action(table, payload)
+    return RedirectResponse(referer, status_code=303)
 
 
 @app.post("/model-actions-save")
@@ -4802,7 +4916,7 @@ def alternativa(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"] != 0]
+        holdings = holdings[holdings["Antal"].abs() > 1e-8]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -5040,7 +5154,7 @@ def core_varlden(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"] != 0]
+        holdings = holdings[holdings["Antal"].abs() > 1e-8]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:

@@ -104,7 +104,23 @@
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
                       <td>{{ format_cell("Värde i SEK", row["Värde"]) }}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Sektor", row["Sektor"]) }}{% endif %}</td>
-                      <td>{{ format_percent_1(row["Vikt"]) }}</td>
+                      <td>
+                        <div class="vikt-inline">
+                          <span>{{ format_percent_1(row["Vikt"]) }}</span>
+                          {% if not is_kassa %}
+                            <form method="post" action="/model-actions-reweight" class="reweight-inline-form">
+                              <input type="hidden" name="model" value="core-varlden" />
+                              <input type="hidden" name="holding" value="{{ row['Värdepapper'] }}" />
+                              <button type="button" class="reweight-arrow" title="Ändra målvikt">↗</button>
+                              <div class="reweight-popover">
+                                <input type="text" name="target_weight" class="reweight-target-input" inputmode="decimal" placeholder="%" />
+                                <button type="submit" class="reweight-apply">OK</button>
+                                <button type="button" class="reweight-cancel">×</button>
+                              </div>
+                            </form>
+                          {% endif %}
+                        </div>
+                      </td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -335,6 +351,46 @@
             const first = row.querySelector(".cell-edit");
             if (first) first.focus();
           });
+        }
+      });
+
+      const reweightForms = document.querySelectorAll(".reweight-inline-form");
+      const closeReweightPopovers = () => {
+        reweightForms.forEach((form) => form.classList.remove("open"));
+      };
+      reweightForms.forEach((form) => {
+        const arrow = form.querySelector(".reweight-arrow");
+        const cancel = form.querySelector(".reweight-cancel");
+        const input = form.querySelector(".reweight-target-input");
+        if (arrow) {
+          arrow.addEventListener("click", (e) => {
+            e.preventDefault();
+            const isOpen = form.classList.contains("open");
+            closeReweightPopovers();
+            if (!isOpen) {
+              form.classList.add("open");
+              if (input) {
+                input.focus();
+                input.select();
+              }
+            }
+          });
+        }
+        if (cancel) {
+          cancel.addEventListener("click", (e) => {
+            e.preventDefault();
+            form.classList.remove("open");
+          });
+        }
+        form.addEventListener("submit", (e) => {
+          if (!input || !input.value.trim()) {
+            e.preventDefault();
+          }
+        });
+      });
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".reweight-inline-form")) {
+          closeReweightPopovers();
         }
       });
     </script>
