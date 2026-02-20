@@ -813,7 +813,7 @@ def _load_taggar_table() -> pd.DataFrame:
     if "row_id" not in df.columns:
         df = df.copy()
         df["row_id"] = range(1, len(df) + 1)
-    if "FX" in TAGGAR_COLUMNS:
+    if "FX" in TAGGAR_COLUMNS and "FX" not in df.columns:
         detaljerat = _load_sheet("Detaljerat")
         fx_map = {}
         if not detaljerat.empty and "Short Name" in detaljerat.columns and "Currency" in detaljerat.columns:
@@ -962,8 +962,6 @@ async def taggar_save(request: Request):
     if row_id:
         row = {"row_id": int(row_id)}
         for col in TAGGAR_COLUMNS:
-            if col == "FX":
-                continue
             raw_val = form.get(f"row__{row_id}__{col}", "")
             if col == "Kurs":
                 row[col] = _to_float(raw_val)
@@ -971,17 +969,12 @@ async def taggar_save(request: Request):
                 row[col] = raw_val
         if (df["row_id"].astype(str) == str(row_id)).any():
             for col in TAGGAR_COLUMNS:
-                if col == "FX":
-                    continue
                 df.loc[df["row_id"].astype(str) == str(row_id), col] = row.get(col, df[col])
         else:
             df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
     new_values = {}
     for col in TAGGAR_COLUMNS:
-        if col == "FX":
-            new_values[col] = ""
-            continue
         raw_val = form.get(f"new__{col}", "")
         new_values[col] = _to_float(raw_val) if col == "Kurs" else raw_val
     def _has_value(v) -> bool:

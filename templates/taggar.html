@@ -110,20 +110,16 @@
                               {% set cls = "modul-badge modul-ovrigt" %}
                             {% endif %}
                             <span class="cell-readonly {{ cls }}">{{ row[col] }}</span>
-                          {% elif col == "FX" %}
-                            <span class="cell-readonly">{{ row[col] }}</span>
                           {% else %}
                             <span class="cell-readonly">{{ row[col] }}</span>
                           {% endif %}
-                          {% if col != "FX" %}
-                            <input
-                              type="text"
-                              name="row__{{ row['row_id'] }}__{{ col }}"
-                              value="{{ row[col] }}"
-                              class="cell-edit"
-                              disabled
-                            />
-                          {% endif %}
+                          <input
+                            type="text"
+                            name="row__{{ row['row_id'] }}__{{ col }}"
+                            value="{{ row[col] }}"
+                            class="cell-edit"
+                            disabled
+                          />
                         </td>
                       {% endfor %}
                       <td class="table-actions-cell">
@@ -135,9 +131,7 @@
                     <td></td>
                     {% for col in columns %}
                       <td>
-                        {% if col != "FX" %}
-                          <input type="text" name="new__{{ col }}" placeholder="Ny {{ col }}" />
-                        {% endif %}
+                        <input type="text" name="new__{{ col }}" placeholder="Ny {{ col }}" />
                       </td>
                     {% endfor %}
                     <td class="table-actions-cell">
