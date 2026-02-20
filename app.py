@@ -3271,19 +3271,23 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                         holding_norm_list.append(norm)
             # map (number, holding) -> value
             value_by_key = {}
+            antal_by_key = {}
             for _, drow in detail_subset.iterrows():
                 number = _normalize_number_value(drow.get("Number", ""))
                 if "Short Name" in detail_subset.columns:
                     holding = _normalize_holding_name(drow.get("Short Name", ""))
                 else:
                     holding = _normalize_holding_name(drow.get(name_col, ""))
-                value_by_key[(number, holding)] = drow.get("Värde (sek)", 0) or 0
+                key = (number, holding)
+                value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
+                antal_by_key[key] = (antal_by_key.get(key, 0) or 0) + (_to_float(drow.get("Available Count", 0)) or 0)
 
             for number, info in mandate_map.items():
                 model_value = _to_float(info.get("__model_value", 0)) or 0
                 holdings_total = totals_by_number.get(number, 0) or 0
                 for holding_norm in holding_norm_list:
                     holding_value = value_by_key.get((number, holding_norm), 0)
+                    holding_antal = antal_by_key.get((number, holding_norm), 0)
                     weight = model_weight_by_holding.get(holding_norm, 0)
                     position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
                     rows.append(
@@ -3292,6 +3296,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                             "Kund": info.get("Kund", ""),
                             "Mandat": info.get("Mandat", ""),
                             "Innehav": holding_display_map.get(holding_norm, holding_norm),
+                            "Antal": holding_antal,
                             "Värde (sek)": holding_value,
                             "Modell": position_value,
                             "vs modell": holding_value - position_value,
@@ -3305,7 +3310,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     if q:
         q_norm = q.strip()
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
-    columns = ["Number", "Kund", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
+    columns = ["Number", "Kund", "Mandat", "Innehav", "Antal", "Värde (sek)", "Modell", "vs modell"]
     return templates.TemplateResponse(
         "ombalansering.html",
         {
@@ -3464,19 +3469,23 @@ def ombalansering_export(modul: str = ""):
                         holding_display_map[norm] = short
                         holding_norm_list.append(norm)
             value_by_key = {}
+            antal_by_key = {}
             for _, drow in detail_subset.iterrows():
                 number = _normalize_number_value(drow.get("Number", ""))
                 if "Short Name" in detail_subset.columns:
                     holding = _normalize_holding_name(drow.get("Short Name", ""))
                 else:
                     holding = _normalize_holding_name(drow.get(name_col, ""))
-                value_by_key[(number, holding)] = drow.get("Värde (sek)", 0) or 0
+                key = (number, holding)
+                value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
+                antal_by_key[key] = (antal_by_key.get(key, 0) or 0) + (_to_float(drow.get("Available Count", 0)) or 0)
 
             for number, info in mandate_map.items():
                 model_value = _to_float(info.get("__model_value", 0)) or 0
                 holdings_total = totals_by_number.get(number, 0) or 0
                 for holding_norm in holding_norm_list:
                     holding_value = value_by_key.get((number, holding_norm), 0)
+                    holding_antal = antal_by_key.get((number, holding_norm), 0)
                     weight = model_weight_by_holding.get(holding_norm, 0)
                     position_value = (
                         holdings_total * model_value * weight
@@ -3489,6 +3498,7 @@ def ombalansering_export(modul: str = ""):
                             "Kund": info.get("Kund", ""),
                             "Mandat": info.get("Mandat", ""),
                             "Innehav": holding_display_map.get(holding_norm, holding_norm),
+                            "Antal": holding_antal,
                             "Värde (sek)": holding_value,
                             "Modell": position_value,
                             "vs modell": holding_value - position_value,
@@ -3500,7 +3510,7 @@ def ombalansering_export(modul: str = ""):
         for r in rows
         if abs(_to_float(r.get("vs modell", 0)) or 0) >= 13000
     ]
-    columns = ["Number", "Kund", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
+    columns = ["Number", "Kund", "Mandat", "Innehav", "Antal", "Värde (sek)", "Modell", "vs modell"]
     df = pd.DataFrame(rows, columns=columns)
     output = BytesIO()
     df.to_excel(output, index=False, sheet_name="Ombalansering")
@@ -4245,10 +4255,6 @@ def core_sverige(request: Request, ticker: str = ""):
         core_data = core_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not core_actions.empty:
         core_actions = _ensure_row_id(core_actions, "coresvactions")
-    if not core_actions.empty and "Datum" in core_actions.columns:
-        core_actions = core_actions.copy()
-        core_actions["__date"] = _parse_date_series(core_actions["Datum"])
-        core_actions = core_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = core_data.columns.tolist() if not core_data.empty else []
     action_cols = [c for c in core_actions.columns.tolist() if c != "row_id"] if not core_actions.empty else []
     data_rows = _safe_rows(core_data) if not core_data.empty else []
@@ -4507,10 +4513,6 @@ def edge(request: Request):
         edge_data = edge_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not edge_actions.empty:
         edge_actions = _ensure_row_id(edge_actions, "edgeactions")
-    if not edge_actions.empty and "Datum" in edge_actions.columns:
-        edge_actions = edge_actions.copy()
-        edge_actions["__date"] = _parse_date_series(edge_actions["Datum"])
-        edge_actions = edge_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = edge_data.columns.tolist() if not edge_data.empty else []
     action_cols = [c for c in edge_actions.columns.tolist() if c != "row_id"] if not edge_actions.empty else []
     data_rows = _safe_rows(edge_data) if not edge_data.empty else []
@@ -4965,10 +4967,6 @@ def alternativa(request: Request):
         alt_data = alt_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not alt_actions.empty:
         alt_actions = _ensure_row_id(alt_actions, "altactions")
-    if not alt_actions.empty and "Datum" in alt_actions.columns:
-        alt_actions = alt_actions.copy()
-        alt_actions["__date"] = _parse_date_series(alt_actions["Datum"])
-        alt_actions = alt_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = alt_data.columns.tolist() if not alt_data.empty else []
     action_cols = [c for c in alt_actions.columns.tolist() if c != "row_id"] if not alt_actions.empty else []
     data_rows = _safe_rows(alt_data) if not alt_data.empty else []
@@ -5220,10 +5218,6 @@ def core_varlden(request: Request):
         corev_data = corev_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not corev_actions.empty:
         corev_actions = _ensure_row_id(corev_actions, "corevactions")
-    if not corev_actions.empty and "Datum" in corev_actions.columns:
-        corev_actions = corev_actions.copy()
-        corev_actions["__date"] = _parse_date_series(corev_actions["Datum"])
-        corev_actions = corev_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = corev_data.columns.tolist() if not corev_data.empty else []
     action_cols = [c for c in corev_actions.columns.tolist() if c != "row_id"] if not corev_actions.empty else []
     data_rows = _safe_rows(corev_data) if not corev_data.empty else []
