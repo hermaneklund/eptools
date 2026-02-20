@@ -207,7 +207,16 @@
             {% endif %}
           </div>
           <div class="dash-card">
-            <div class="dash-title">Actions</div>
+            <div class="dash-title-row">
+              <div class="dash-title">Actions</div>
+              <form method="post" action="/core-varlden/import-transactions" enctype="multipart/form-data" class="action-import-form">
+                <label class="action-import-label">
+                  <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" required />
+                  Importera transactions
+                </label>
+                <button type="submit">Import</button>
+              </form>
+            </div>
             <form method="post" action="/model-actions-add" class="action-add-form">
               <input type="hidden" name="model" value="core-varlden" />
               <input type="date" name="Datum" required />

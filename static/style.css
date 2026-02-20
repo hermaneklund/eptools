@@ -274,6 +274,50 @@ body {
   border-color: rgba(40, 80, 60, 0.7);
 }
 
+.dash-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-import-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-import-label {
+  border: 1px solid rgba(40, 80, 60, 0.4);
+  background: #fff;
+  color: #1e2a24;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.action-import-label input[type="file"] {
+  display: none;
+}
+
+.action-import-form button {
+  border: 1px solid rgba(40, 80, 60, 0.4);
+  background: #fff;
+  color: #1e2a24;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.action-import-form button:hover,
+.action-import-label:hover {
+  border-color: rgba(40, 80, 60, 0.7);
+}
+
 .actions-save-row {
   margin-left: 4px;
 }

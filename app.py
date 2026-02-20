@@ -1287,6 +1287,59 @@ async def alt_data_add(request: Request):
     return RedirectResponse(url=referer, status_code=303)
 
 
+@app.post("/core-varlden/import-transactions")
+async def core_varlden_import_transactions(request: Request, excel_file: UploadFile = File(...)):
+    referer = request.headers.get("referer") or "/core-varlden"
+    if not excel_file:
+        return RedirectResponse(url=referer, status_code=303)
+    try:
+        content = await excel_file.read()
+        if not content:
+            return RedirectResponse(url=referer, status_code=303)
+
+        wb = pd.ExcelFile(BytesIO(content), engine="openpyxl")
+        sheet_name = next((s for s in wb.sheet_names if str(s).strip().lower() == "transactions"), None)
+        if not sheet_name:
+            return RedirectResponse(url=referer, status_code=303)
+
+        df = pd.read_excel(BytesIO(content), sheet_name=sheet_name, engine="openpyxl")
+        if df.empty and len(df.columns) == 0:
+            return RedirectResponse(url=referer, status_code=303)
+
+        df = df.dropna(axis=1, how="all")
+        df.columns = [str(c).strip() for c in df.columns]
+        rename_map = {
+            "date": "Datum",
+            "security": "Värdepapper",
+            "värdepapper": "Värdepapper",
+            "transaction type": "Transaktionstyp",
+            "transactiontype": "Transaktionstyp",
+            "antal": "Antal",
+            "quantity": "Antal",
+            "kurs": "Kurs",
+            "price": "Kurs",
+            "cashflow": "Kassaflöde",
+            "kassaflöde": "Kassaflöde",
+            "netcash": "Nettokassa",
+            "nettokassa": "Nettokassa",
+        }
+        df = df.rename(columns={c: rename_map.get(c.strip().lower(), c) for c in df.columns})
+
+        required = ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs", "Kassaflöde", "Nettokassa"]
+        for col in required:
+            if col not in df.columns:
+                df[col] = pd.NA
+        df = df[required]
+
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(DB_PATH) as conn:
+            df.to_sql("corevactions", conn, if_exists="replace", index=False)
+    except Exception:
+        return RedirectResponse(url=referer, status_code=303)
+
+    return RedirectResponse(url=referer, status_code=303)
+
+
 @app.post("/models-update")
 def models_update(request: Request):
     # Core Sverige (includes OMXS30/OMXSPI)
@@ -1921,8 +1974,17 @@ def _recalc_kassa(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["__sort"] = range(len(df))
     df_sorted = df.sort_values(by="__sort")
+
+    opening_cash = 0.0
+    if not df_sorted.empty and "Nettokassa" in df_sorted.columns:
+        first_idx = df_sorted.index[0]
+        first_net = _to_float(df_sorted.at[first_idx, "Nettokassa"])
+        first_flow = _to_float(df_sorted.at[first_idx, "Kassaflöde"]) or 0.0
+        if first_net is not None:
+            opening_cash = first_net - first_flow
+
     nettokassa = []
-    running = 0.0
+    running = opening_cash
     for _, row in df_sorted.iterrows():
         running += _to_float(row.get("Kassaflöde", 0)) or 0
         nettokassa.append(running)
@@ -1952,11 +2014,17 @@ def _recalc_kassa_from_date(df: pd.DataFrame, start_date) -> pd.DataFrame:
         return df
 
     start_idx = df_sorted.index[start_mask][0]
-    before = df_sorted.loc[:start_idx].iloc[:-1]
+    start_pos = int(df_sorted.index.get_loc(start_idx))
+    before = df_sorted.iloc[:start_pos]
     base = 0.0
     if not before.empty and "Nettokassa" in before.columns:
         base_val = _to_float(before["Nettokassa"].iloc[-1])
         base = base_val if base_val is not None else 0.0
+    elif "Nettokassa" in df_sorted.columns:
+        first_net = _to_float(df_sorted.iloc[0].get("Nettokassa"))
+        first_flow = _to_float(df_sorted.iloc[0].get("Kassaflöde")) or 0.0
+        if first_net is not None:
+            base = first_net - first_flow
 
     running = base
     for idx in df_sorted.loc[start_idx:].index:
@@ -4542,8 +4610,6 @@ async def model_actions_save(request: Request):
             pass
     if edited_date is not None:
         df = _recalc_kassa_from_date(df, edited_date)
-    else:
-        df = _recalc_kassa(df)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql(table, conn, if_exists="replace", index=False)
     return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
@@ -4577,8 +4643,6 @@ async def model_actions_delete(request: Request):
     df = df[df["row_id"] != str(row_id)]
     if deleted_date is not None:
         df = _recalc_kassa_from_date(df, deleted_date)
-    else:
-        df = _recalc_kassa(df)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql(table, conn, if_exists="replace", index=False)
     return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
