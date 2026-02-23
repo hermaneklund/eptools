@@ -800,7 +800,7 @@ def _get_mandat_rules_text(mandat_value: str) -> list[str]:
     return ["EI>20% (enskilt innehav exkl. valuta <= 20%)"]
 
 
-TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Modellnamn", "Api", "Sektor", "FX"]
+TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Kupong", "Modellnamn", "Api", "Sektor", "FX"]
 MANDAT_BOOL_COLUMNS = ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0"]
 
 
@@ -837,6 +837,9 @@ def _load_taggar_table() -> pd.DataFrame:
     if "Sektor" in TAGGAR_COLUMNS and "Sektor" not in df.columns:
         df = df.copy()
         df["Sektor"] = ""
+    if "Kupong" in TAGGAR_COLUMNS and "Kupong" not in df.columns:
+        df = df.copy()
+        df["Kupong"] = ""
     cols = [c for c in TAGGAR_COLUMNS if c in df.columns]
     df = df[["row_id"] + cols]
     return df
@@ -1639,9 +1642,12 @@ def _model_weights_for_modul(modul_label: str, taggar_df: pd.DataFrame) -> dict[
         short_norm = _normalize_holding_name(short_name)
         values_by_short[short_norm] = values_by_short.get(short_norm, 0) + value
         total_value += value
-    if total_value <= 0:
+    # Include cash in denominator so weights match model page Vikt (cash-inclusive).
+    cash_balance = _latest_nettokassa(actions) or 0.0
+    total_with_cash = total_value + cash_balance
+    if total_with_cash <= 0:
         return {}
-    return {k: v / total_value for k, v in values_by_short.items()}
+    return {k: v / total_with_cash for k, v in values_by_short.items()}
 
 
 def _latest_nettokassa(actions: pd.DataFrame) -> float | None:
