@@ -90,7 +90,7 @@
                   <tr>
                     <th></th>
                     {% for col in columns %}
-                      <th class="{% if col == 'Kurs' %}kurs-col{% endif %}">{{ col }}</th>
+                      <th class="{% if col == 'Kurs' %}kurs-col{% elif col == 'Short Name' %}shortname-col{% elif col == 'Modellnamn' %}modellnamn-col{% endif %}">{{ col }}</th>
                     {% endfor %}
                     <th></th>
                   </tr>
@@ -103,7 +103,7 @@
                         <button type="submit" class="taggar-save-row" name="row_id" value="{{ row['row_id'] }}">Spara</button>
                       </td>
                       {% for col in columns %}
-                        <td class="{% if col == 'Kurs' %}kurs-col{% endif %}">
+                        <td class="{% if col == 'Kurs' %}kurs-col{% elif col == 'Short Name' %}shortname-col{% elif col == 'Modellnamn' %}modellnamn-col{% endif %}">
                           {% if col == "Modul" %}
                             {% set modul = (row[col] ~ "")|lower %}
                             {% set cls = "modul-badge" %}

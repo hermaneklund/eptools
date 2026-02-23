@@ -800,7 +800,7 @@ def _get_mandat_rules_text(mandat_value: str) -> list[str]:
     return ["EI>20% (enskilt innehav exkl. valuta <= 20%)"]
 
 
-TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Kupong", "Modellnamn", "Api", "Sektor", "FX"]
+TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Modellnamn", "Api", "Sektor", "Kupong", "FX"]
 MANDAT_BOOL_COLUMNS = ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0"]
 
 
@@ -2965,7 +2965,7 @@ def fixed_income_innehav(request: Request):
     taggar_df = _load_sheet("Taggar")
 
     rows = []
-    columns = ["Innehav", "Antal", "Kurs", "Valuta", "Värde i SEK"]
+    columns = ["Innehav", "Antal", "Kurs", "Valuta", "Värde i SEK", "Yield", "Sektor"]
 
     if not detaljerat.empty and not taggar_df.empty and "Short Name" in taggar_df.columns:
         taggar_map = {}
@@ -2998,6 +2998,10 @@ def fixed_income_innehav(request: Request):
             name = str(row.get("Instrument Name", row.get("Short Name", ""))).strip()
             if not name:
                 continue
+            short_key = _normalize_key(row.get("Short Name", ""))
+            tag_row = taggar_map.get(short_key, {})
+            kupong_val = str(tag_row.get("Kupong", "")).strip()
+            sektor_val = str(tag_row.get("Sektor", "")).strip()
             if name not in holding_totals:
                 holding_totals[name] = {
                     "Innehav": name,
@@ -3005,6 +3009,8 @@ def fixed_income_innehav(request: Request):
                     "Kurs_num": 0.0,
                     "Kurs_den": 0.0,
                     "Valuta_set": set(),
+                    "Yield_set": set(),
+                    "Sektor_set": set(),
                     "Värde i SEK": 0.0,
                 }
             rec = holding_totals[name]
@@ -3013,12 +3019,18 @@ def fixed_income_innehav(request: Request):
             rec["Kurs_den"] += abs(antal_f)
             if valuta:
                 rec["Valuta_set"].add(valuta)
+            if kupong_val:
+                rec["Yield_set"].add(kupong_val)
+            if sektor_val:
+                rec["Sektor_set"].add(sektor_val)
             rec["Värde i SEK"] += value
 
         rows = sorted(
             [
                 {
                     "Innehav": rec["Innehav"],
+                    "Yield": next(iter(rec["Yield_set"])) if len(rec["Yield_set"]) == 1 else ("Blandad" if rec["Yield_set"] else ""),
+                    "Sektor": next(iter(rec["Sektor_set"])) if len(rec["Sektor_set"]) == 1 else ("Blandad" if rec["Sektor_set"] else ""),
                     "Antal": rec["Antal"],
                     "Kurs": (rec["Kurs_num"] / rec["Kurs_den"]) if rec["Kurs_den"] else 0.0,
                     "Valuta": next(iter(rec["Valuta_set"])) if len(rec["Valuta_set"]) == 1 else ("Blandad" if rec["Valuta_set"] else ""),

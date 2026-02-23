@@ -1631,6 +1631,20 @@ body {
   white-space: nowrap;
 }
 
+.taggar-form th.shortname-col,
+.taggar-form td.shortname-col {
+  width: 130px;
+  max-width: 130px;
+  white-space: nowrap;
+}
+
+.taggar-form th.modellnamn-col,
+.taggar-form td.modellnamn-col {
+  width: 220px;
+  max-width: 220px;
+  white-space: nowrap;
+}
+
 .taggar-missing-grid {
   display: flex;
   gap: 16px;
