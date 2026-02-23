@@ -77,7 +77,30 @@
         <div class="sheet-header-row">
           <h2>Fixed income - Innehav</h2>
         </div>
-        <p class="empty" style="margin-top: 12px;">Inga data.</p>
+        {% if rows and rows|length > 0 %}
+          <div class="table-wrap fixed-income-table">
+            <table>
+              <thead>
+                <tr>
+                  {% for col in columns %}
+                    <th>{{ col }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    {% for col in columns %}
+                      <td>{{ format_cell(col, row[col]) }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="empty" style="margin-top: 12px;">Inga data.</p>
+        {% endif %}
       </section>
     </main>
 

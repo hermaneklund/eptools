@@ -137,9 +137,12 @@
                     {% for row in table.rows %}
                       <tr>
                         <td>{{ row.Holding }}</td>
-                        <td>{{ format_percent_1(row.Utv) }}</td>
-                        <td>{% if row.WeeklyPerf is not none %}{{ format_percent_1(row.WeeklyPerf) }}{% endif %}</td>
-                        <td>{% if row.YTDPerf is not none %}{{ format_percent_1(row.YTDPerf) }}{% endif %}</td>
+                        {% set utv_cls = "dashboard-num-pos" if row.Utv is not none and row.Utv > 0.10 else ("dashboard-num-neg" if row.Utv is not none and row.Utv < -0.10 else "") %}
+                        <td class="{{ utv_cls }}">{{ format_percent_1(row.Utv) }}</td>
+                        {% set weekly_cls = "dashboard-num-pos" if row.WeeklyPerf is not none and row.WeeklyPerf > 0.10 else ("dashboard-num-neg" if row.WeeklyPerf is not none and row.WeeklyPerf < -0.10 else "") %}
+                        <td class="{{ weekly_cls }}">{% if row.WeeklyPerf is not none %}{{ format_percent_1(row.WeeklyPerf) }}{% endif %}</td>
+                        {% set ytd_cls = "dashboard-num-pos" if row.YTDPerf is not none and row.YTDPerf > 0.10 else ("dashboard-num-neg" if row.YTDPerf is not none and row.YTDPerf < -0.10 else "") %}
+                        <td class="{{ ytd_cls }}">{% if row.YTDPerf is not none %}{{ format_percent_1(row.YTDPerf) }}{% endif %}</td>
                         <td>{{ format_percent_1(row.Vikt) }}</td>
                       </tr>
                     {% endfor %}

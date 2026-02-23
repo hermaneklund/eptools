@@ -1689,6 +1689,16 @@ body {
   text-align: center;
 }
 
+.dashboard-num-pos {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.dashboard-num-neg {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 @media (max-width: 980px) {
   .model-dashboard-grid {
     grid-template-columns: 1fr;

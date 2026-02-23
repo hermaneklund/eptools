@@ -2002,6 +2002,57 @@ def _recalc_kassa_from_date(df: pd.DataFrame, start_date) -> pd.DataFrame:
     return df
 
 
+def _recalc_kassa_from_row_id(df: pd.DataFrame, start_row_id) -> pd.DataFrame:
+    df = df.copy()
+    if "Antal" in df.columns:
+        df["Antal"] = _to_float_series(df["Antal"]).fillna(0)
+    if "Kurs" in df.columns:
+        df["Kurs"] = _to_float_series(df["Kurs"]).fillna(0)
+    df["Kassaflöde"] = (df["Antal"] * df["Kurs"] * -1).astype(float)
+
+    if "row_id" not in df.columns:
+        if "Datum" in df.columns:
+            return _recalc_kassa_from_date(df, pd.to_datetime(start_row_id, errors="coerce"))
+        return _recalc_kassa(df)
+
+    df["__rid"] = pd.to_numeric(df["row_id"], errors="coerce")
+    df_sorted = df.dropna(subset=["__rid"]).sort_values(by="__rid")
+    if df_sorted.empty:
+        df.drop(columns=["__rid"], inplace=True, errors="ignore")
+        return df
+
+    start_id = _to_float(start_row_id)
+    if start_id is None:
+        df.drop(columns=["__rid"], inplace=True, errors="ignore")
+        return df
+
+    start_mask = df_sorted["__rid"] >= float(start_id)
+    if not start_mask.any():
+        df.drop(columns=["__rid"], inplace=True, errors="ignore")
+        return df
+
+    start_pos = int(np.argmax(start_mask.values))
+    before = df_sorted.iloc[:start_pos]
+    base = 0.0
+    if not before.empty and "Nettokassa" in before.columns:
+        base_val = _to_float(before["Nettokassa"].iloc[-1])
+        base = base_val if base_val is not None else 0.0
+    elif "Nettokassa" in df_sorted.columns:
+        first_net = _to_float(df_sorted.iloc[0].get("Nettokassa"))
+        first_flow = _to_float(df_sorted.iloc[0].get("Kassaflöde")) or 0.0
+        if first_net is not None:
+            base = first_net - first_flow
+
+    running = base
+    for idx in df_sorted.iloc[start_pos:].index:
+        running += _to_float(df_sorted.at[idx, "Kassaflöde"]) or 0.0
+        df_sorted.at[idx, "Nettokassa"] = running
+
+    df.loc[df_sorted.index, "Nettokassa"] = df_sorted["Nettokassa"]
+    df.drop(columns=["__rid"], inplace=True, errors="ignore")
+    return df
+
+
 def _to_float(value) -> float | None:
     try:
         if isinstance(value, str):
@@ -2904,10 +2955,82 @@ def fixed_income(request: Request, sort_by: str = "att_kopa"):
 
 @app.get("/fixed-income-innehav", response_class=HTMLResponse)
 def fixed_income_innehav(request: Request):
+    detaljerat = _load_sheet("Detaljerat")
+    taggar_df = _load_sheet("Taggar")
+
+    rows = []
+    columns = ["Innehav", "Antal", "Kurs", "Valuta", "Värde i SEK"]
+
+    if not detaljerat.empty and not taggar_df.empty and "Short Name" in taggar_df.columns:
+        taggar_map = {}
+        currency_map = {}
+        for _, row in taggar_df.iterrows():
+            key = _normalize_key(row.get("Short Name", ""))
+            if not key:
+                continue
+            taggar_map[key] = row.to_dict()
+            kurs = pd.to_numeric(row.get("Kurs", None), errors="coerce")
+            if pd.notna(kurs):
+                currency_map[key] = float(kurs)
+
+        details = detaljerat.copy()
+        details["__modul"] = details["Short Name"].apply(
+            lambda s: str(taggar_map.get(_normalize_key(s), {}).get("Modul", "")).strip().lower()
+        )
+        details = details[details["__modul"] == "fixed income"]
+
+        holding_totals = {}
+        for _, row in details.iterrows():
+            antal = pd.to_numeric(row.get("Available Count", 0), errors="coerce")
+            kurs = pd.to_numeric(row.get("Price", 0), errors="coerce")
+            valuta = str(row.get("Currency", "")).strip()
+            rate = currency_map.get(_normalize_key(valuta), 1.0)
+            antal_f = float(antal) if pd.notna(antal) else 0.0
+            kurs_f = float(kurs) if pd.notna(kurs) else 0.0
+            value = antal_f * kurs_f / 100.0
+            value *= float(rate) if rate is not None else 1.0
+            name = str(row.get("Instrument Name", row.get("Short Name", ""))).strip()
+            if not name:
+                continue
+            if name not in holding_totals:
+                holding_totals[name] = {
+                    "Innehav": name,
+                    "Antal": 0.0,
+                    "Kurs_num": 0.0,
+                    "Kurs_den": 0.0,
+                    "Valuta_set": set(),
+                    "Värde i SEK": 0.0,
+                }
+            rec = holding_totals[name]
+            rec["Antal"] += antal_f
+            rec["Kurs_num"] += kurs_f * abs(antal_f)
+            rec["Kurs_den"] += abs(antal_f)
+            if valuta:
+                rec["Valuta_set"].add(valuta)
+            rec["Värde i SEK"] += value
+
+        rows = sorted(
+            [
+                {
+                    "Innehav": rec["Innehav"],
+                    "Antal": rec["Antal"],
+                    "Kurs": (rec["Kurs_num"] / rec["Kurs_den"]) if rec["Kurs_den"] else 0.0,
+                    "Valuta": next(iter(rec["Valuta_set"])) if len(rec["Valuta_set"]) == 1 else ("Blandad" if rec["Valuta_set"] else ""),
+                    "Värde i SEK": rec["Värde i SEK"],
+                }
+                for rec in holding_totals.values()
+            ],
+            key=lambda r: _to_float(r.get("Värde i SEK", 0)) or 0,
+            reverse=True,
+        )
+
     return templates.TemplateResponse(
         "fixed_income_innehav.html",
         {
             "request": request,
+            "columns": columns,
+            "rows": rows,
+            "format_cell": format_cell,
         },
     )
 
@@ -4836,26 +4959,12 @@ async def model_actions_save(request: Request):
     mask = df["row_id"] == str(row_id)
     if not mask.any():
         return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
-    edited_date = None
-    if "Datum" in df.columns:
-        try:
-            edited_date = df.loc[mask, "Datum"].iloc[0]
-        except Exception:
-            edited_date = None
     editable = ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs"]
     for col in editable:
         key = f"row__{row_id}__{col}"
         if key in form:
             df.loc[mask, col] = _coerce_cell_for_column(df, col, form.get(key))
-    if "Datum" in df.columns:
-        try:
-            new_date = df.loc[mask, "Datum"].iloc[0]
-            if new_date is not None and str(new_date).strip() != "":
-                edited_date = new_date
-        except Exception:
-            pass
-    if edited_date is not None:
-        df = _recalc_kassa_from_date(df, edited_date)
+    df = _recalc_kassa_from_row_id(df, row_id)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql(table, conn, if_exists="replace", index=False)
     return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
@@ -4879,16 +4988,11 @@ async def model_actions_delete(request: Request):
     if df.empty:
         return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
     df = _ensure_row_id(df, table)
-    deleted_date = None
-    if "Datum" in df.columns:
-        try:
-            deleted_date = df.loc[df["row_id"].astype(str) == str(row_id), "Datum"].iloc[0]
-        except Exception:
-            deleted_date = None
+    deleted_row_id = _to_float(row_id)
     df["row_id"] = df["row_id"].astype(str)
     df = df[df["row_id"] != str(row_id)]
-    if deleted_date is not None:
-        df = _recalc_kassa_from_date(df, deleted_date)
+    if deleted_row_id is not None:
+        df = _recalc_kassa_from_row_id(df, deleted_row_id)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql(table, conn, if_exists="replace", index=False)
     return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
@@ -4923,6 +5027,10 @@ async def core_varlden_import_transactions(
 
     # Import exactly what is in the file, only normalizing column labels.
     df.columns = [str(c).strip() for c in df.columns]
+    # Use import row order as canonical sequence for subsequent Nettokassa recalculations.
+    if "row_id" in df.columns:
+        df = df.drop(columns=["row_id"])
+    df.insert(0, "row_id", range(1, len(df) + 1))
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql("corevactions", conn, if_exists="replace", index=False)
@@ -5395,10 +5503,11 @@ def core_varlden(request: Request):
         corev_data = corev_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not corev_actions.empty:
         corev_actions = _ensure_row_id(corev_actions, "corevactions")
-    if not corev_actions.empty and "Datum" in corev_actions.columns:
+    # Keep sequence by row_id and show newest on top.
+    if not corev_actions.empty and "row_id" in corev_actions.columns:
         corev_actions = corev_actions.copy()
-        corev_actions["__date"] = _parse_date_series(corev_actions["Datum"])
-        corev_actions = corev_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
+        corev_actions["__rid"] = pd.to_numeric(corev_actions["row_id"], errors="coerce")
+        corev_actions = corev_actions.sort_values(by="__rid", ascending=False).drop(columns=["__rid"])
     data_cols = corev_data.columns.tolist() if not corev_data.empty else []
     action_cols = [c for c in corev_actions.columns.tolist() if c != "row_id"] if not corev_actions.empty else []
     data_rows = _safe_rows(corev_data) if not corev_data.empty else []
