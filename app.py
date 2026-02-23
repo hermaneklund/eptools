@@ -8,7 +8,7 @@ import pandas as pd
 import sqlite3
 import numpy as np
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -1662,6 +1662,35 @@ def _latest_nettokassa(actions: pd.DataFrame) -> float | None:
         temp["Datum"] = pd.to_datetime(temp["Datum"], errors="coerce")
         temp = temp.sort_values(by="Datum")
     return float(temp["Nettokassa"].iloc[-1])
+
+
+def _ensure_model_perf_cache_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS model_perf_cache (
+            holding_key TEXT PRIMARY KEY,
+            ticker TEXT,
+            weekly REAL,
+            ytd REAL,
+            fetched_at TEXT
+        )
+        """
+    )
+
+
+def _load_model_perf_cache() -> pd.DataFrame:
+    if not DB_PATH.exists():
+        return pd.DataFrame(columns=["holding_key", "ticker", "weekly", "ytd", "fetched_at"])
+    with sqlite3.connect(DB_PATH) as conn:
+        _ensure_model_perf_cache_table(conn)
+        return pd.read_sql_query("SELECT * FROM model_perf_cache", conn)
+
+
+def _save_model_perf_cache(cache_df: pd.DataFrame) -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        _ensure_model_perf_cache_table(conn)
+        cache_df.to_sql("model_perf_cache", conn, if_exists="replace", index=False)
 
 
 def _load_first_existing_table(candidates: list[str]) -> pd.DataFrame:
@@ -3947,12 +3976,158 @@ def model_dashboard(request: Request):
         }
         ytd_rows.append(ytd_row)
 
+    # Build holding-level weekly/YTD performance from Yahoo ticker mapping in Taggar (API column).
+    taggar_df = _load_taggar_table()
+    api_by_modelname = {}
+    api_col = next((c for c in taggar_df.columns if str(c).strip().lower() == "api"), None)
+    if not taggar_df.empty and "Modellnamn" in taggar_df.columns and api_col:
+        api_df = (
+            taggar_df[["Modellnamn", api_col]]
+            .dropna(subset=["Modellnamn"])
+            .assign(
+                model=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold(),
+                api=lambda d: d[api_col].astype(str).str.strip(),
+            )
+        )
+        api_df = api_df[api_df["model"] != ""]
+        api_by_modelname = dict(zip(api_df["model"], api_df["api"]))
+
+    perf_by_holding: dict[str, dict[str, float | None]] = {}
+    perf_cache = _load_model_perf_cache()
+    now = datetime.now()
+    cache_ttl = timedelta(hours=24)
+    cache_map: dict[str, dict] = {}
+    if not perf_cache.empty:
+        for _, row in perf_cache.iterrows():
+            key = str(row.get("holding_key", "")).strip().casefold()
+            if not key:
+                continue
+            cache_map[key] = {
+                "ticker": str(row.get("ticker", "")).strip(),
+                "weekly": _to_float(row.get("weekly")),
+                "ytd": _to_float(row.get("ytd")),
+                "fetched_at": pd.to_datetime(row.get("fetched_at"), errors="coerce"),
+            }
+
+    cache_dirty = False
+    if yf is not None and api_by_modelname:
+        unique_holdings = {
+            str(r.get("Holding", "")).strip().casefold()
+            for mt in model_tables
+            for r in mt.get("rows", [])
+            if str(r.get("Holding", "")).strip()
+            and str(r.get("Holding", "")).strip().upper() != "KASSA"
+        }
+        for holding_key in unique_holdings:
+            ticker = api_by_modelname.get(holding_key, "")
+            if not ticker:
+                perf_by_holding[holding_key] = {"weekly": None, "ytd": None}
+                continue
+            cached = cache_map.get(holding_key)
+            if cached:
+                fetched_at = cached.get("fetched_at")
+                same_ticker = str(cached.get("ticker", "")).strip() == ticker
+                if same_ticker and pd.notna(fetched_at) and (now - fetched_at.to_pydatetime()) < cache_ttl:
+                    perf_by_holding[holding_key] = {
+                        "weekly": cached.get("weekly"),
+                        "ytd": cached.get("ytd"),
+                    }
+                    continue
+            try:
+                hist = yf.Ticker(ticker).history(period="2y", interval="1d", auto_adjust=True)
+                if hist is None or hist.empty or "Close" not in hist.columns:
+                    perf_by_holding[holding_key] = {"weekly": None, "ytd": None}
+                    continue
+                closes = pd.to_numeric(hist["Close"], errors="coerce").dropna()
+                if closes.empty:
+                    perf_by_holding[holding_key] = {"weekly": None, "ytd": None}
+                    continue
+                last_date = closes.index[-1]
+                last_val = float(closes.iloc[-1])
+                if not np.isfinite(last_val) or last_val == 0:
+                    perf_by_holding[holding_key] = {"weekly": None, "ytd": None}
+                    continue
+
+                week_cutoff = last_date - timedelta(days=7)
+                week_candidates = closes[closes.index <= week_cutoff]
+                week_base = float(week_candidates.iloc[-1]) if not week_candidates.empty else None
+
+                if getattr(last_date, "tzinfo", None) is not None:
+                    ytd_start = pd.Timestamp(year=last_date.year, month=1, day=1, tz=last_date.tzinfo)
+                else:
+                    ytd_start = pd.Timestamp(year=last_date.year, month=1, day=1)
+                ytd_candidates = closes[closes.index < ytd_start]
+                if not ytd_candidates.empty:
+                    ytd_base = float(ytd_candidates.iloc[-1])
+                else:
+                    in_year = closes[closes.index >= ytd_start]
+                    ytd_base = float(in_year.iloc[0]) if not in_year.empty else None
+
+                weekly = (last_val / week_base - 1) if week_base and week_base != 0 else None
+                ytd = (last_val / ytd_base - 1) if ytd_base and ytd_base != 0 else None
+                perf_by_holding[holding_key] = {"weekly": weekly, "ytd": ytd}
+                cache_map[holding_key] = {
+                    "ticker": ticker,
+                    "weekly": weekly,
+                    "ytd": ytd,
+                    "fetched_at": now,
+                }
+                cache_dirty = True
+            except Exception:
+                perf_by_holding[holding_key] = {"weekly": None, "ytd": None}
+                cache_map[holding_key] = {
+                    "ticker": ticker,
+                    "weekly": None,
+                    "ytd": None,
+                    "fetched_at": now,
+                }
+                cache_dirty = True
+
+    if cache_dirty:
+        cache_df = pd.DataFrame(
+            [
+                {
+                    "holding_key": k,
+                    "ticker": v.get("ticker", ""),
+                    "weekly": v.get("weekly"),
+                    "ytd": v.get("ytd"),
+                    "fetched_at": v.get("fetched_at").strftime("%Y-%m-%d %H:%M:%S")
+                    if pd.notna(v.get("fetched_at"))
+                    else "",
+                }
+                for k, v in cache_map.items()
+            ]
+        )
+        _save_model_perf_cache(cache_df)
+
+    latest_fetch = None
+    for v in cache_map.values():
+        dt = v.get("fetched_at")
+        if pd.isna(dt):
+            continue
+        if latest_fetch is None or dt > latest_fetch:
+            latest_fetch = dt
+
+    for mt in model_tables:
+        for row in mt.get("rows", []):
+            h = str(row.get("Holding", "")).strip()
+            if not h or h.upper() == "KASSA":
+                row["WeeklyPerf"] = None
+                row["YTDPerf"] = None
+                continue
+            p = perf_by_holding.get(h.casefold(), {})
+            row["WeeklyPerf"] = p.get("weekly")
+            row["YTDPerf"] = p.get("ytd")
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "model_tables": model_tables,
             "ytd_rows": ytd_rows,
+            "perf_last_fetched": latest_fetch.strftime("%Y-%m-%d %H:%M")
+            if latest_fetch is not None
+            else "Ej hämtat",
             "format_cell": format_cell,
             "format_percent_1": format_percent_1,
         },

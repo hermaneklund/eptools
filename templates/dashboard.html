@@ -114,6 +114,43 @@
         </div>
       </section>
 
+      <section class="sheet">
+        <div class="dash-card">
+          <div class="sidebar-meta" style="margin-bottom:8px;">Weekly/YTD senast hämtat: {{ perf_last_fetched }}</div>
+          <div class="model-dashboard-grid">
+            {% for table in model_tables %}
+              <div class="table-wrap">
+                <table class="dashboard-holdings-table">
+                  <thead>
+                    <tr>
+                      <th colspan="5">{{ table.title }}</th>
+                    </tr>
+                    <tr>
+                      <th>Innehav</th>
+                      <th>Utv.</th>
+                      <th>Weekly</th>
+                      <th>YTD</th>
+                      <th>Vikt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in table.rows %}
+                      <tr>
+                        <td>{{ row.Holding }}</td>
+                        <td>{{ format_percent_1(row.Utv) }}</td>
+                        <td>{% if row.WeeklyPerf is not none %}{{ format_percent_1(row.WeeklyPerf) }}{% endif %}</td>
+                        <td>{% if row.YTDPerf is not none %}{{ format_percent_1(row.YTDPerf) }}{% endif %}</td>
+                        <td>{{ format_percent_1(row.Vikt) }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
       <div class="dashboard-actions">
         <form method="post" action="/models-update">
           <button type="submit" class="sidebar-button">Uppdatera modeller</button>
@@ -166,6 +203,7 @@
         "#EA7B7B",
         "#FFEAD3"
       ];
+      const chartColors = ["#005F02", "#0C2C55", "#D25353", "#C0B87A"];
       donutModels.forEach((model, idx) => {
         const target = document.getElementById(`dashboard-donut-${idx}`);
         if (!target) return;
@@ -183,7 +221,7 @@
           x: labels,
           y: values,
           customdata: labelsFull,
-          marker: { color: labels.map((_, i) => donutPalette[i % donutPalette.length]) },
+          marker: { color: chartColors[idx % chartColors.length] },
           hovertemplate: "%{customdata}<br>%{y:.1%}<extra></extra>"
         }], {
           margin: { l: 58, r: 16, t: 20, b: 92 },
