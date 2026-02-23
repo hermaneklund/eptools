@@ -1280,59 +1280,6 @@ async def alt_data_add(request: Request):
     return RedirectResponse(url=referer, status_code=303)
 
 
-@app.post("/core-varlden/import-transactions")
-async def core_varlden_import_transactions(request: Request, excel_file: UploadFile = File(...)):
-    referer = request.headers.get("referer") or "/core-varlden"
-    if not excel_file:
-        return RedirectResponse(url=referer, status_code=303)
-    try:
-        content = await excel_file.read()
-        if not content:
-            return RedirectResponse(url=referer, status_code=303)
-
-        wb = pd.ExcelFile(BytesIO(content), engine="openpyxl")
-        sheet_name = next((s for s in wb.sheet_names if str(s).strip().lower() == "transactions"), None)
-        if not sheet_name:
-            return RedirectResponse(url=referer, status_code=303)
-
-        df = pd.read_excel(BytesIO(content), sheet_name=sheet_name, engine="openpyxl")
-        if df.empty and len(df.columns) == 0:
-            return RedirectResponse(url=referer, status_code=303)
-
-        df = df.dropna(axis=1, how="all")
-        df.columns = [str(c).strip() for c in df.columns]
-        rename_map = {
-            "date": "Datum",
-            "security": "Värdepapper",
-            "värdepapper": "Värdepapper",
-            "transaction type": "Transaktionstyp",
-            "transactiontype": "Transaktionstyp",
-            "antal": "Antal",
-            "quantity": "Antal",
-            "kurs": "Kurs",
-            "price": "Kurs",
-            "cashflow": "Kassaflöde",
-            "kassaflöde": "Kassaflöde",
-            "netcash": "Nettokassa",
-            "nettokassa": "Nettokassa",
-        }
-        df = df.rename(columns={c: rename_map.get(c.strip().lower(), c) for c in df.columns})
-
-        required = ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs", "Kassaflöde", "Nettokassa"]
-        for col in required:
-            if col not in df.columns:
-                df[col] = pd.NA
-        df = df[required]
-
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(DB_PATH) as conn:
-            df.to_sql("corevactions", conn, if_exists="replace", index=False)
-    except Exception:
-        return RedirectResponse(url=referer, status_code=303)
-
-    return RedirectResponse(url=referer, status_code=303)
-
-
 @app.post("/models-update")
 def models_update(request: Request):
     # Core Sverige (includes OMXS30/OMXSPI)
@@ -1700,14 +1647,20 @@ def _model_weights_for_modul(modul_label: str, taggar_df: pd.DataFrame) -> dict[
 def _latest_nettokassa(actions: pd.DataFrame) -> float | None:
     if actions is None or actions.empty or "Nettokassa" not in actions.columns:
         return None
-    temp = actions[["Nettokassa"]].copy()
+    temp = actions.copy()
     temp["Nettokassa"] = _to_float_series(temp["Nettokassa"])
-    if "Datum" in actions.columns:
-        temp["Datum"] = pd.to_datetime(actions["Datum"], errors="coerce")
-        temp = temp.sort_values(by="Datum")
     temp = temp[temp["Nettokassa"].notna()]
     if temp.empty:
         return None
+    # Use highest row_id as canonical "latest" row when available.
+    if "row_id" in temp.columns:
+        rid = pd.to_numeric(temp["row_id"], errors="coerce")
+        temp = temp.assign(__rid=rid).dropna(subset=["__rid"]).sort_values(by="__rid")
+        if not temp.empty:
+            return float(temp["Nettokassa"].iloc[-1])
+    if "Datum" in temp.columns:
+        temp["Datum"] = pd.to_datetime(temp["Datum"], errors="coerce")
+        temp = temp.sort_values(by="Datum")
     return float(temp["Nettokassa"].iloc[-1])
 
 
@@ -1906,16 +1859,7 @@ def _append_model_action(table: str, payload: dict) -> None:
     kurs = _to_float(payload.get("Kurs")) or 0
     kassaflode = antal * kurs * -1
 
-    prev_nettokassa = 0.0
-    if not df.empty and "Nettokassa" in df.columns:
-        temp = df.copy()
-        if "Datum" in temp.columns:
-            temp["__date"] = _parse_date_series(temp["Datum"])
-            temp = temp.sort_values(by="__date")
-        temp["Nettokassa"] = _to_float_series(temp["Nettokassa"])
-        temp = temp[temp["Nettokassa"].notna()]
-        if not temp.empty:
-            prev_nettokassa = float(temp["Nettokassa"].iloc[-1])
+    prev_nettokassa = _latest_nettokassa(df) or 0.0
 
     nettokassa = prev_nettokassa + kassaflode
     next_id = int(df["row_id"].max() or 0) + 1
@@ -2925,6 +2869,16 @@ def fixed_income(request: Request, sort_by: str = "att_kopa"):
             "kassa_fi_sum": ctx["kassa_fi_sum"],
             "kassa_fi_matardepo": ctx["kassa_fi_matardepo"],
             "matardepo_rows": ctx["matardepo_rows"],
+        },
+    )
+
+
+@app.get("/fixed-income-innehav", response_class=HTMLResponse)
+def fixed_income_innehav(request: Request):
+    return templates.TemplateResponse(
+        "fixed_income_innehav.html",
+        {
+            "request": request,
         },
     )
 
@@ -4255,6 +4209,10 @@ def core_sverige(request: Request, ticker: str = ""):
         core_data = core_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not core_actions.empty:
         core_actions = _ensure_row_id(core_actions, "coresvactions")
+    if not core_actions.empty and "Datum" in core_actions.columns:
+        core_actions = core_actions.copy()
+        core_actions["__date"] = _parse_date_series(core_actions["Datum"])
+        core_actions = core_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = core_data.columns.tolist() if not core_data.empty else []
     action_cols = [c for c in core_actions.columns.tolist() if c != "row_id"] if not core_actions.empty else []
     data_rows = _safe_rows(core_data) if not core_data.empty else []
@@ -4513,6 +4471,10 @@ def edge(request: Request):
         edge_data = edge_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not edge_actions.empty:
         edge_actions = _ensure_row_id(edge_actions, "edgeactions")
+    if not edge_actions.empty and "Datum" in edge_actions.columns:
+        edge_actions = edge_actions.copy()
+        edge_actions["__date"] = _parse_date_series(edge_actions["Datum"])
+        edge_actions = edge_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = edge_data.columns.tolist() if not edge_data.empty else []
     action_cols = [c for c in edge_actions.columns.tolist() if c != "row_id"] if not edge_actions.empty else []
     data_rows = _safe_rows(edge_data) if not edge_data.empty else []
@@ -4757,6 +4719,42 @@ async def model_actions_delete(request: Request):
     return RedirectResponse(request.headers.get("referer", f"/{model}"), status_code=303)
 
 
+@app.post("/core-varlden/import-transactions")
+async def core_varlden_import_transactions(
+    request: Request,
+    excel_file: UploadFile = File(default=None),
+):
+    if excel_file is None:
+        return RedirectResponse(url="/core-varlden", status_code=303)
+    content = await excel_file.read()
+    if not content:
+        return RedirectResponse(url="/core-varlden", status_code=303)
+
+    excel_buffer = BytesIO(content)
+    try:
+        workbook = pd.ExcelFile(excel_buffer, engine="openpyxl")
+    except Exception:
+        return RedirectResponse(url="/core-varlden", status_code=303)
+
+    sheet_lookup = {str(name).strip().lower(): name for name in workbook.sheet_names}
+    sheet_name = sheet_lookup.get("transactions")
+    if not sheet_name:
+        return RedirectResponse(url="/core-varlden", status_code=303)
+
+    try:
+        df = pd.read_excel(BytesIO(content), sheet_name=sheet_name, engine="openpyxl")
+    except Exception:
+        return RedirectResponse(url="/core-varlden", status_code=303)
+
+    # Import exactly what is in the file, only normalizing column labels.
+    df.columns = [str(c).strip() for c in df.columns]
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        df.to_sql("corevactions", conn, if_exists="replace", index=False)
+
+    return RedirectResponse(url="/core-varlden", status_code=303)
+
+
 @app.get("/alternativa", response_class=HTMLResponse)
 def alternativa(request: Request):
     alt_data = _load_sheet_from_db("altdata")
@@ -4967,6 +4965,10 @@ def alternativa(request: Request):
         alt_data = alt_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not alt_actions.empty:
         alt_actions = _ensure_row_id(alt_actions, "altactions")
+    if not alt_actions.empty and "Datum" in alt_actions.columns:
+        alt_actions = alt_actions.copy()
+        alt_actions["__date"] = _parse_date_series(alt_actions["Datum"])
+        alt_actions = alt_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = alt_data.columns.tolist() if not alt_data.empty else []
     action_cols = [c for c in alt_actions.columns.tolist() if c != "row_id"] if not alt_actions.empty else []
     data_rows = _safe_rows(alt_data) if not alt_data.empty else []
@@ -5218,6 +5220,10 @@ def core_varlden(request: Request):
         corev_data = corev_data.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     if not corev_actions.empty:
         corev_actions = _ensure_row_id(corev_actions, "corevactions")
+    if not corev_actions.empty and "Datum" in corev_actions.columns:
+        corev_actions = corev_actions.copy()
+        corev_actions["__date"] = _parse_date_series(corev_actions["Datum"])
+        corev_actions = corev_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
     data_cols = corev_data.columns.tolist() if not corev_data.empty else []
     action_cols = [c for c in corev_actions.columns.tolist() if c != "row_id"] if not corev_actions.empty else []
     data_rows = _safe_rows(corev_data) if not corev_data.empty else []
@@ -5281,6 +5287,52 @@ def mandat_export(q: str = ""):
     export_df.to_excel(output, index=False, sheet_name="Mandat")
     output.seek(0)
     headers = {"Content-Disposition": "attachment; filename=mandat.xlsx"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
+
+
+@app.get("/db/export")
+def db_export():
+    if not DB_PATH.exists():
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            pd.DataFrame({"Info": ["Databasfil saknas"]}).to_excel(
+                writer, index=False, sheet_name="Info"
+            )
+        output.seek(0)
+        headers = {"Content-Disposition": "attachment; filename=portfolio_db_export.xlsx"}
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=headers,
+        )
+
+    with sqlite3.connect(DB_PATH) as conn:
+        tables = pd.read_sql_query(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+            conn,
+        )["name"].tolist()
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            used_names: set[str] = set()
+            for table in tables:
+                df = pd.read_sql_query(f'SELECT * FROM "{table}"', conn)
+                # Excel sheet names max 31 chars; ensure uniqueness.
+                base = str(table)[:31] if table else "Sheet"
+                sheet = base
+                idx = 1
+                while sheet in used_names:
+                    suffix = f"_{idx}"
+                    sheet = f"{base[:31-len(suffix)]}{suffix}"
+                    idx += 1
+                used_names.add(sheet)
+                df.to_excel(writer, index=False, sheet_name=sheet)
+        output.seek(0)
+
+    headers = {"Content-Disposition": "attachment; filename=portfolio_db_export.xlsx"}
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

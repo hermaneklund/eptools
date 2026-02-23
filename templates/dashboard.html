@@ -13,7 +13,15 @@
         <a href="/" class="sidebar-link">Portfolio Viewer</a>
         <a href="/mina-kunder" class="sidebar-link">Mina kunder</a>
         <a href="/mandat" class="sidebar-link">Mandat</a>
-        <a href="/fixed-income" class="sidebar-link">Fixed Income</a>
+        <div class="sidebar-group">
+          <button type="button" class="sidebar-link sidebar-toggle" data-target="fixed-income-subnav">
+            Fixed Income <span class="caret">&#9662;</span>
+          </button>
+          <div class="sidebar-subnav" id="fixed-income-subnav">
+            <a href="/fixed-income" class="sidebar-link">Kassapositioner</a>
+            <a href="/fixed-income-innehav" class="sidebar-link">Innehav</a>
+          </div>
+        </div>
         <div class="sidebar-group">
           <button type="button" class="sidebar-link sidebar-toggle" data-target="portfoljhantering-subnav">
             Portföljhantering <span class="caret">▾</span>
@@ -43,6 +51,9 @@
             Välj Excel-fil
           </label>
           <button type="submit" class="sidebar-button">Importera Excel</button>
+        </form>
+        <form class="sidebar-form sidebar-import" method="get" action="/db/export">
+          <button type="submit" class="sidebar-button">Exportera DB</button>
         </form>
         <div class="sidebar-meta sidebar-import">Senast importerat: {{ last_import() }}</div>
       </nav>

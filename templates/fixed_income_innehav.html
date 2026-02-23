@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>E&P Portfolio Viewer - Fixed Income</title>
+    <title>E&P Portfolio Viewer - Fixed Income Innehav</title>
     <link rel="stylesheet" href="/static/style.css?v=2" />
   </head>
   <body>
@@ -45,15 +45,13 @@
           </div>
         </div>
         <div class="sidebar-spacer"></div>
-                        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
+        <form class="sidebar-form sidebar-import" method="post" action="/import" enctype="multipart/form-data">
           <label class="sidebar-upload-button">
             <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" class="sidebar-file-input-hidden" required />
             Välj Excel-fil
           </label>
           <button type="submit" class="sidebar-button">Importera Excel</button>
         </form>
-
-
         <form class="sidebar-form sidebar-import" method="get" action="/db/export">
           <button type="submit" class="sidebar-button">Exportera DB</button>
         </form>
@@ -76,86 +74,11 @@
       </header>
 
       <section class="sheet fixed-income-main">
-          <div class="sheet-header-row">
-          <h2>Fixed income</h2>
-            <a class="sidebar-button" href="/fixed-income/export?sort_by={{ sort_by }}" style="width:auto; min-width:170px; text-align:center;">Exportera Excel</a>
-          </div>
-          <div class="sheet-sum in-table-box">
-            <div>
-              <span>Kassa FI (Att köpa &gt; 1):</span>
-              <strong>{{ format_cell("Värde i SEK", kassa_fi_sum) }}</strong>
-            </div>
-            <div>
-              <span>Kassa (Matardepåer):</span>
-              <strong>{{ format_cell("Värde i SEK", kassa_fi_matardepo) }}</strong>
-            </div>
-          </div>
-          <div class="table-wrap fixed-income-table">
-            <table>
-              <thead>
-                <tr>
-                  {% for col in columns %}
-                    <th>
-                    {% if col == "Number" %}
-                      <a class="sort-arrow{% if sort_by == 'number' %} active{% endif %}" href="/fixed-income?sort_by=number">
-                        {{ col }} <span>↓</span>
-                      </a>
-                    {% elif col == "Att köpa" %}
-                      <a class="sort-arrow{% if sort_by == 'att_kopa' %} active{% endif %}" href="/fixed-income?sort_by=att_kopa">
-                        {{ col }} <span>↓</span>
-                      </a>
-                      {% elif col == "Kassa FI" %}
-                        <a class="sort-arrow{% if sort_by == 'kassa_fi' %} active{% endif %}" href="/fixed-income?sort_by=kassa_fi">
-                          {{ col }} <span>↓</span>
-                        </a>
-                      {% else %}
-                        {{ col }}
-                      {% endif %}
-                    </th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in rows if (row.get("Mandat","")|lower) != "matardepå" %}
-                  <tr>
-                    {% for col in columns %}
-                      <td>
-                      {% if col == "Kassa FI" %}
-                        {{ format_cell("Värde i SEK", row[col]) }}
-                        {% if row.get("Kassa FI Matardepå") %}
-                          <span class="kassa-fi-note">
-                            ({{ format_cell("Värde i SEK", row.get("Kassa FI Matardepå")) }})
-                          </span>
-                        {% endif %}
-                      {% else %}
-                        {{ format_cell(col, row[col]) }}
-                      {% endif %}
-                    </td>
-                    {% endfor %}
-                  </tr>
-                {% endfor %}
-                {% if matardepo_rows and matardepo_rows|length > 0 %}
-                  <tr class="section-row">
-                    <td colspan="{{ columns|length }}">Matardepåer</td>
-                  </tr>
-                  {% for row in rows if (row.get("Mandat","")|lower) == "matardepå" %}
-                    <tr>
-                      {% for col in columns %}
-                        <td>
-                          {% if col == "Kassa FI" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
-                          {% else %}
-                            {{ format_cell(col, row[col]) }}
-                          {% endif %}
-                        </td>
-                      {% endfor %}
-                    </tr>
-                  {% endfor %}
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <div class="sheet-header-row">
+          <h2>Fixed income - Innehav</h2>
+        </div>
+        <p class="empty" style="margin-top: 12px;">Inga data.</p>
+      </section>
     </main>
 
     <script>
