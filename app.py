@@ -2966,6 +2966,9 @@ def fixed_income_innehav(request: Request):
 
     rows = []
     columns = ["Innehav", "Antal", "Kurs", "Valuta", "Värde i SEK", "Yield", "Sektor"]
+    sector_points = []
+    yield_decile_points = []
+    weighted_avg_yield = None
 
     if not detaljerat.empty and not taggar_df.empty and "Short Name" in taggar_df.columns:
         taggar_map = {}
@@ -3042,12 +3045,63 @@ def fixed_income_innehav(request: Request):
             reverse=True,
         )
 
+        if rows:
+            sector_totals: dict[str, float] = {}
+            yield_rows = []
+            for r in rows:
+                value = _to_float(r.get("Värde i SEK", 0)) or 0.0
+                if value <= 0:
+                    continue
+                sektor = str(r.get("Sektor", "")).strip() or "Okänd"
+                sector_totals[sektor] = sector_totals.get(sektor, 0.0) + value
+                y = _to_float(r.get("Yield", ""))
+                if y is not None:
+                    yield_rows.append({"yield": y, "value": value})
+
+            sector_points = [
+                {"label": k, "value": v}
+                for k, v in sorted(sector_totals.items(), key=lambda x: x[1], reverse=True)
+            ]
+
+            if yield_rows:
+                ydf = pd.DataFrame(yield_rows)
+                total_yield_value = float(ydf["value"].sum() or 0.0)
+                if total_yield_value > 0:
+                    weighted_avg_yield = float((ydf["yield"] * ydf["value"]).sum() / total_yield_value)
+                buckets = [
+                    ("<2%", None, 0.02),
+                    ("2-3%", 0.02, 0.03),
+                    ("3-4%", 0.03, 0.04),
+                    ("4-5%", 0.04, 0.05),
+                    ("5-6%", 0.05, 0.06),
+                    ("6-7%", 0.06, 0.07),
+                    ("7-8%", 0.07, 0.08),
+                    (">8%", 0.08, None),
+                ]
+                yield_decile_points = []
+                for label, low, high in buckets:
+                    mask = pd.Series([True] * len(ydf))
+                    if low is not None:
+                        mask = mask & (ydf["yield"] >= low)
+                    if high is not None:
+                        mask = mask & (ydf["yield"] < high)
+                    bucket_value = float(ydf.loc[mask, "value"].sum() or 0.0)
+                    yield_decile_points.append(
+                        {
+                            "label": label if bucket_value > 0 else "",
+                            "value": bucket_value,
+                        }
+                    )
+
     return templates.TemplateResponse(
         "fixed_income_innehav.html",
         {
             "request": request,
             "columns": columns,
             "rows": rows,
+            "sector_points": json.dumps(sector_points),
+            "yield_decile_points": json.dumps(yield_decile_points),
+            "weighted_avg_yield": weighted_avg_yield,
             "format_cell": format_cell,
         },
     )
