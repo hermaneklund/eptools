@@ -3701,7 +3701,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     rows = [
         r
         for r in rows
-        if abs(_to_float(r.get("vs modell", 0)) or 0) >= 13000
+        if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000
     ]
     if q:
         q_norm = q.strip()
@@ -3904,7 +3904,7 @@ def ombalansering_export(modul: str = ""):
     rows = [
         r
         for r in rows
-        if abs(_to_float(r.get("vs modell", 0)) or 0) >= 13000
+        if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000
     ]
     columns = ["Number", "Kund", "Mandat", "Innehav", "Antal", "Värde (sek)", "Modell", "vs modell"]
     df = pd.DataFrame(rows, columns=columns)
