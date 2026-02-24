@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Förvaltning Dashboard</title>
     <link rel="stylesheet" href="/static/style.css?v=2" />
+    <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
@@ -86,17 +87,26 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr class="dashboard-modul-row">
                 <td class="perf-label-col">Modul</td>
                 {% for row in ytd_rows %}
                   <td class="perf-model-col">{% if row.ModelYTD is not none %}{{ format_percent_1(row.ModelYTD) }}{% endif %}</td>
                 {% endfor %}
               </tr>
               <tr>
-                <td class="perf-label-col">Index</td>
+                <td class="perf-label-col">Primary Index</td>
                 {% for row in ytd_rows %}
-                  {% set idx = row.Index1YTD if row.Index1YTD is not none else row.Index2YTD %}
-                  <td class="perf-model-col">{% if idx is not none %}{{ format_percent_1(idx) }}{% endif %}</td>
+                  <td class="perf-model-col">
+                    {% if row.Index1YTD is not none %}{{ format_percent_1(row.Index1YTD) }}{% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td class="perf-label-col">Secondary Index</td>
+                {% for row in ytd_rows %}
+                  <td class="perf-model-col">
+                    {% if row.Index2YTD is not none %}{{ format_percent_1(row.Index2YTD) }}{% endif %}
+                  </td>
                 {% endfor %}
               </tr>
             </tbody>

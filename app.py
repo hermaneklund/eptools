@@ -4064,7 +4064,7 @@ def model_dashboard(request: Request):
             "actions_tables": ["edgeactions", "EdgeActions"],
             "data_tables": ["edgedata", "EdgeData"],
             "model_col": "Edge",
-            "index_cols": ["FirstNorth", "OMXSSCPI"],
+            "index_cols": ["OMXSSCPI", "FirstNorth"],
         },
         {
             "title": "Core Världen",
