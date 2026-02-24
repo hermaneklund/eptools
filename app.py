@@ -2118,6 +2118,8 @@ def format_cell(column: str, value) -> str:
         return f"{_format_number(num * 100, 0)}%"
     if col in {"fi % modell", "fi % portfölj"}:
         return _format_number(num * 100, 2) + "%"
+    if col == "yield":
+        return _format_number(num * 100, 1) + "%"
     if col == "att köpa":
         return _format_number(num, 1)
     if col in {"gav", "utv.", "kurs"}:
@@ -2960,7 +2962,7 @@ def fixed_income(request: Request, sort_by: str = "att_kopa"):
 
 
 @app.get("/fixed-income-innehav", response_class=HTMLResponse)
-def fixed_income_innehav(request: Request):
+def fixed_income_innehav(request: Request, stibor: str = ""):
     detaljerat = _load_sheet("Detaljerat")
     taggar_df = _load_sheet("Taggar")
 
@@ -2969,6 +2971,9 @@ def fixed_income_innehav(request: Request):
     sector_points = []
     yield_decile_points = []
     weighted_avg_yield = None
+    stibor_rate = _to_float(stibor)
+    if stibor_rate is not None and stibor_rate > 1:
+        stibor_rate /= 100.0
 
     if not detaljerat.empty and not taggar_df.empty and "Short Name" in taggar_df.columns:
         taggar_map = {}
@@ -3012,7 +3017,8 @@ def fixed_income_innehav(request: Request):
                     "Kurs_num": 0.0,
                     "Kurs_den": 0.0,
                     "Valuta_set": set(),
-                    "Yield_set": set(),
+                    "Yield_num": 0.0,
+                    "Yield_den": 0.0,
                     "Sektor_set": set(),
                     "Värde i SEK": 0.0,
                 }
@@ -3022,8 +3028,19 @@ def fixed_income_innehav(request: Request):
             rec["Kurs_den"] += abs(antal_f)
             if valuta:
                 rec["Valuta_set"].add(valuta)
-            if kupong_val:
-                rec["Yield_set"].add(kupong_val)
+            kupong_num = _to_float(kupong_val)
+            if kupong_num is not None:
+                if kupong_num > 1:
+                    kupong_num /= 100.0
+                add_stibor = (
+                    (stibor_rate is not None)
+                    and (kupong_num != 0)
+                    and (_normalize_key(valuta) != "usd")
+                )
+                total_yield = kupong_num + ((stibor_rate or 0.0) if add_stibor else 0.0)
+                w = abs(value)
+                rec["Yield_num"] += total_yield * w
+                rec["Yield_den"] += w
             if sektor_val:
                 rec["Sektor_set"].add(sektor_val)
             rec["Värde i SEK"] += value
@@ -3032,7 +3049,7 @@ def fixed_income_innehav(request: Request):
             [
                 {
                     "Innehav": rec["Innehav"],
-                    "Yield": next(iter(rec["Yield_set"])) if len(rec["Yield_set"]) == 1 else ("Blandad" if rec["Yield_set"] else ""),
+                    "Yield": (rec["Yield_num"] / rec["Yield_den"]) if rec["Yield_den"] else "",
                     "Sektor": next(iter(rec["Sektor_set"])) if len(rec["Sektor_set"]) == 1 else ("Blandad" if rec["Sektor_set"] else ""),
                     "Antal": rec["Antal"],
                     "Kurs": (rec["Kurs_num"] / rec["Kurs_den"]) if rec["Kurs_den"] else 0.0,
@@ -3102,6 +3119,7 @@ def fixed_income_innehav(request: Request):
             "sector_points": json.dumps(sector_points),
             "yield_decile_points": json.dumps(yield_decile_points),
             "weighted_avg_yield": weighted_avg_yield,
+            "stibor": stibor,
             "format_cell": format_cell,
         },
     )

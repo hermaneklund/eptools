@@ -78,6 +78,23 @@
       <section class="sheet fixed-income-main">
         <div class="sheet-header-row" style="margin-bottom: 12px;">
           <h2>Fixed Income</h2>
+          <form method="get" action="/fixed-income-innehav" style="display:flex; align-items:center; gap:8px;">
+            <label for="stibor-input" style="font-size:12px; color:#475569;">Stibor</label>
+            <input
+              id="stibor-input"
+              type="text"
+              name="stibor"
+              value="{{ stibor }}"
+              placeholder="t.ex. 3,25%"
+              style="width:96px; height:30px; border:1px solid #d1d5db; border-radius:8px; padding:0 8px; font-size:12px;"
+            />
+            <button
+              type="submit"
+              aria-label="Sätt stibor"
+              title="Sätt stibor"
+              style="width:30px; height:30px; border:1px solid #d1d5db; border-radius:999px; background:#ffffff; color:#0f172a; font-size:13px; line-height:1; cursor:pointer;"
+            >✓</button>
+          </form>
         </div>
         {% if rows and rows|length > 0 %}
           <div class="table-wrap fixed-income-table">
@@ -160,6 +177,30 @@
 
       const sectorEl = document.getElementById("fi-sector-chart");
       if (sectorEl && sectorPoints && sectorPoints.length) {
+        const palette = [
+          "#0C2C55",
+          "#296374",
+          "#629FAD",
+          "#EDEDCE",
+          "#005F02",
+          "#427A43",
+          "#C0B87A",
+          "#F2E3BB",
+          "#2D6A2E",
+          "#6A8E5A",
+          "#D8CCA0",
+          "#0B6B16",
+          "#5B8B46",
+          "#A89D5C",
+          "#E7D39E",
+          "#356F3A",
+          "#7D9558",
+          "#BFAF6C",
+          "#F0DEB0",
+          "#1F5E24",
+          "#8A7D44",
+          "#DCCB8A",
+        ];
         Plotly.newPlot(
           sectorEl,
           [{
@@ -167,6 +208,10 @@
             hole: 0.55,
             labels: sectorPoints.map((p) => p.label),
             values: sectorPoints.map((p) => p.value),
+            sort: false,
+            direction: "clockwise",
+            rotation: 360,
+            marker: { colors: sectorPoints.map((_, i) => palette[i % palette.length]), line: { width: 0 } },
             textinfo: "none",
             hovertemplate: "%{label}<br>%{percent:.0%}<extra></extra>",
           }],
