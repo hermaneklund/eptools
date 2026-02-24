@@ -178,52 +178,12 @@
       const sectorEl = document.getElementById("fi-sector-chart");
       if (sectorEl && sectorPoints && sectorPoints.length) {
         const palette = [
-          "#0C2C55",
-          "#296374",
-          "#629FAD",
-          "#EDEDCE",
-          "#005F02",
-          "#427A43",
-          "#C0B87A",
-          "#F2E3BB",
-          "#2D6A2E",
-          "#6A8E5A",
-          "#D8CCA0",
-          "#0B6B16",
-          "#5B8B46",
-          "#A89D5C",
-          "#E7D39E",
-          "#356F3A",
-          "#7D9558",
-          "#BFAF6C",
-          "#F0DEB0",
-          "#1F5E24",
-          "#8A7D44",
-          "#DCCB8A",
-          "#9E3B3B",
-          "#D25353",
-          "#EA7B7B",
-          "#FFEAD3",
-          "#1F4E79",
-          "#2F6A8F",
-          "#3F86A6",
-          "#5CA4BF",
-          "#6F8C5A",
-          "#87A06B",
-          "#9FB47D",
-          "#B8C88F",
-          "#6B4E71",
-          "#836289",
-          "#9A77A0",
-          "#B28CB7",
-          "#7A5A3A",
-          "#92704D",
-          "#AA8661",
-          "#C29C74",
-          "#335C67",
-          "#4A7681",
-          "#61909B",
-          "#78AAB5",
+          "#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#8C564B",
+          "#E377C2", "#7F7F7F", "#BCBD22", "#17BECF", "#393B79", "#637939",
+          "#8C6D31", "#843C39", "#7B4173", "#3182BD", "#E6550D", "#31A354",
+          "#756BB1", "#636363", "#6BAED6", "#FD8D3C", "#74C476", "#FB6A4A",
+          "#9E9AC8", "#BDBDBD", "#B5CF6B", "#9EDAE5", "#5254A3", "#8CA252",
+          "#BD9E39", "#AD494A", "#A55194", "#6B6ECF", "#B5CF6B", "#E7BA52",
         ];
         const used = new Set();
         const uniqueColors = sectorPoints.map((_, i) => {
@@ -231,13 +191,14 @@
             used.add(palette[i].toLowerCase());
             return palette[i];
           }
-          // Guaranteed unique fallback via golden-angle hue walk with varying lightness.
+          // Guaranteed unique fallback via golden-angle hue walk.
           let step = i - palette.length;
           let color = "";
           do {
             const hue = (step * 137.508) % 360;
-            const lightness = 42 + (step % 4) * 6;
-            color = `hsl(${hue.toFixed(3)}, 48%, ${lightness}%)`;
+            const sat = 60 + (step % 3) * 8;
+            const light = 46 + (step % 4) * 5;
+            color = `hsl(${hue.toFixed(3)}, ${sat}%, ${light}%)`;
             step += 1;
           } while (used.has(color));
           used.add(color);
