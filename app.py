@@ -3086,8 +3086,7 @@ def fixed_income_innehav(request: Request, stibor: str = ""):
                 if total_yield_value > 0:
                     weighted_avg_yield = float((ydf["yield"] * ydf["value"]).sum() / total_yield_value)
                 buckets = [
-                    ("<2%", None, 0.02),
-                    ("2-3%", 0.02, 0.03),
+                    ("<3%", None, 0.03),
                     ("3-4%", 0.03, 0.04),
                     ("4-5%", 0.04, 0.05),
                     ("5-6%", 0.05, 0.06),
@@ -3315,6 +3314,8 @@ def uppbyggnader(request: Request):
     mandat = _load_sheet("Mandat")
     detaljerat = _load_sheet("Detaljerat")
     taggar_df = _load_sheet("Taggar")
+    flags_df = _load_mandat_flags()
+    dyn_df = _load_mandat_dyn()
 
     if mandat.empty:
         return templates.TemplateResponse(
@@ -3330,6 +3331,42 @@ def uppbyggnader(request: Request):
 
     number_col = "Number" if "Number" in mandat.columns else "Nummer"
     kund_col = "Kund" if "Kund" in mandat.columns else ""
+
+    # Merge dynamic flags/weights the same way as other pages:
+    # if dynamisk=1 use dyn* columns, otherwise use static columns.
+    if not flags_df.empty and "number" in flags_df.columns:
+        flags_merge = flags_df.rename(columns={"number": number_col}).copy()
+        flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
+        for target_col, flag_col in [
+            ("dynamisk", "dynamisk"),
+            ("coresv", "coresv"),
+            ("corevä", "coreva"),
+            ("edge", "edge"),
+            ("alts", "alts"),
+        ]:
+            merged_col = f"{flag_col}_flag"
+            if merged_col in mandat.columns:
+                if target_col in mandat.columns:
+                    mandat[target_col] = mandat[merged_col].fillna(mandat[target_col])
+                else:
+                    mandat[target_col] = mandat[merged_col].fillna(0)
+                mandat.drop(columns=[merged_col], inplace=True)
+
+    if not dyn_df.empty and "number" in dyn_df.columns:
+        dyn_merge = dyn_df.rename(columns={"number": number_col}).copy()
+        dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
+        for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
+            dcol_dyn = f"{dcol}_dyn"
+            if dcol_dyn in mandat.columns:
+                if dcol in mandat.columns:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
+                else:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(0)
+                mandat.drop(columns=[dcol_dyn], inplace=True)
 
     taggar_map: dict[str, dict] = {}
     currency_map: dict[str, float] = {}

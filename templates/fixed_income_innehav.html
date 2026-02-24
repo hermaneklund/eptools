@@ -201,6 +201,12 @@
           "#8A7D44",
           "#DCCB8A",
         ];
+        const uniqueColors = sectorPoints.map((_, i) => {
+          if (i < palette.length) return palette[i];
+          // Extend with additional unique HSL colors to avoid reusing palette colors.
+          const hue = (i * 37) % 360;
+          return `hsl(${hue}, 42%, 52%)`;
+        });
         Plotly.newPlot(
           sectorEl,
           [{
@@ -211,7 +217,7 @@
             sort: false,
             direction: "clockwise",
             rotation: 360,
-            marker: { colors: sectorPoints.map((_, i) => palette[i % palette.length]), line: { width: 0 } },
+            marker: { colors: uniqueColors, line: { width: 0 } },
             textinfo: "none",
             hovertemplate: "%{label}<br>%{percent:.0%}<extra></extra>",
           }],
@@ -230,8 +236,7 @@
       if (yieldEl && yieldDeciles && yieldDeciles.length) {
         const maxY = Math.max(...yieldDeciles.map((p) => Number(p.value || 0)), 0);
         const avgX = weightedAvgYield === null ? null : (
-          weightedAvgYield < 0.02 ? "<2%" :
-          weightedAvgYield < 0.03 ? "2-3%" :
+          weightedAvgYield < 0.03 ? "<3%" :
           weightedAvgYield < 0.04 ? "3-4%" :
           weightedAvgYield < 0.05 ? "4-5%" :
           weightedAvgYield < 0.06 ? "5-6%" :
