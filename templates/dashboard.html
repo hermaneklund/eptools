@@ -30,6 +30,7 @@
           <div class="sidebar-subnav" id="portfoljhantering-subnav">
             <a href="/ombalansering" class="sidebar-link">Ombalansering</a>
             <a href="/modulforandring" class="sidebar-link">Positionstorlek</a>
+            <a href="/uppbyggnader" class="sidebar-link">Uppbyggnader</a>
             <a href="/taggar" class="sidebar-link">Taggar</a>
           </div>
         </div>
@@ -88,7 +89,7 @@
             </thead>
             <tbody>
               <tr class="dashboard-modul-row">
-                <td class="perf-label-col">Modul</td>
+                <td class="perf-label-col">E&P Förvaltning</td>
                 {% for row in ytd_rows %}
                   <td class="perf-model-col">{% if row.ModelYTD is not none %}{{ format_percent_1(row.ModelYTD) }}{% endif %}</td>
                 {% endfor %}
