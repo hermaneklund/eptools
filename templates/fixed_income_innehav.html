@@ -200,12 +200,48 @@
           "#1F5E24",
           "#8A7D44",
           "#DCCB8A",
+          "#9E3B3B",
+          "#D25353",
+          "#EA7B7B",
+          "#FFEAD3",
+          "#1F4E79",
+          "#2F6A8F",
+          "#3F86A6",
+          "#5CA4BF",
+          "#6F8C5A",
+          "#87A06B",
+          "#9FB47D",
+          "#B8C88F",
+          "#6B4E71",
+          "#836289",
+          "#9A77A0",
+          "#B28CB7",
+          "#7A5A3A",
+          "#92704D",
+          "#AA8661",
+          "#C29C74",
+          "#335C67",
+          "#4A7681",
+          "#61909B",
+          "#78AAB5",
         ];
+        const used = new Set();
         const uniqueColors = sectorPoints.map((_, i) => {
-          if (i < palette.length) return palette[i];
-          // Extend with additional unique HSL colors to avoid reusing palette colors.
-          const hue = (i * 37) % 360;
-          return `hsl(${hue}, 42%, 52%)`;
+          if (i < palette.length) {
+            used.add(palette[i].toLowerCase());
+            return palette[i];
+          }
+          // Guaranteed unique fallback via golden-angle hue walk with varying lightness.
+          let step = i - palette.length;
+          let color = "";
+          do {
+            const hue = (step * 137.508) % 360;
+            const lightness = 42 + (step % 4) * 6;
+            color = `hsl(${hue.toFixed(3)}, 48%, ${lightness}%)`;
+            step += 1;
+          } while (used.has(color));
+          used.add(color);
+          return color;
         });
         Plotly.newPlot(
           sectorEl,

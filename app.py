@@ -200,6 +200,32 @@ def _get_last_import() -> str:
 templates.env.globals["last_import"] = _get_last_import
 
 
+def _get_meta_value(key: str, default: str = "") -> str:
+    if not DB_PATH.exists():
+        return default
+    with sqlite3.connect(DB_PATH) as conn:
+        if not _table_exists(conn, "_meta"):
+            return default
+        row = conn.execute(
+            'SELECT value FROM "_meta" WHERE key = ?',
+            (key,),
+        ).fetchone()
+        return str(row[0]) if row and row[0] is not None else default
+
+
+def _set_meta_value(key: str, value: str) -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            'CREATE TABLE IF NOT EXISTS "_meta" (key TEXT PRIMARY KEY, value TEXT)'
+        )
+        conn.execute(
+            'INSERT OR REPLACE INTO "_meta" (key, value) VALUES (?, ?)',
+            (key, value),
+        )
+        conn.commit()
+
+
 FLAG_COLUMNS = ["dynamisk", "coresv", "corevä", "edge", "alts"]
 FLAG_DB_MAP = {
     "dynamisk": "dynamisk",
@@ -2971,7 +2997,14 @@ def fixed_income_innehav(request: Request, stibor: str = ""):
     sector_points = []
     yield_decile_points = []
     weighted_avg_yield = None
-    stibor_rate = _to_float(stibor)
+    stibor_key = "fixed_income_stibor"
+    if "stibor" in request.query_params:
+        stibor_value = str(stibor or "").strip()
+        _set_meta_value(stibor_key, stibor_value)
+    else:
+        stibor_value = _get_meta_value(stibor_key, "")
+
+    stibor_rate = _to_float(stibor_value)
     if stibor_rate is not None and stibor_rate > 1:
         stibor_rate /= 100.0
 
@@ -3118,7 +3151,7 @@ def fixed_income_innehav(request: Request, stibor: str = ""):
             "sector_points": json.dumps(sector_points),
             "yield_decile_points": json.dumps(yield_decile_points),
             "weighted_avg_yield": weighted_avg_yield,
-            "stibor": stibor,
+            "stibor": stibor_value,
             "format_cell": format_cell,
         },
     )
