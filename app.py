@@ -4073,6 +4073,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
                 {
                     "Number": number,
                     "Kund": row.get("Kund", ""),
+                    "Förvaltningsnotering": row.get("Förvaltningsnotering", ""),
                     "Modul": label,
                     "Kassa": kassa_by_number.get(number, 0),
                     "Position": position_value,
@@ -4083,7 +4084,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
         q_norm = q.strip()
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
 
-    columns = ["Number", "Kund", "Modul", "Kassa", "Position"]
+    columns = ["Number", "Kund", "Förvaltningsnotering", "Modul", "Kassa", "Position"]
     position_sum = sum(_to_float(r.get("Position", 0)) or 0 for r in rows)
     return templates.TemplateResponse(
         "modulforandring.html",

@@ -935,6 +935,28 @@ body {
   right: 0;
 }
 
+.model-switch-link {
+  position: absolute;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(40, 80, 60, 0.3);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #1e2a24;
+  background: #fff;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.model-switch-link:hover {
+  border-color: rgba(40, 80, 60, 0.6);
+  background: #f7faf8;
+}
+
 .model-add-button {
   border: 1px solid rgba(40, 80, 60, 0.3);
   background: #fff;
