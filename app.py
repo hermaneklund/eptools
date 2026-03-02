@@ -2601,6 +2601,9 @@ def index(request: Request, q: str = ""):
             if sheet == "Detaljerat" and "Modul" in view.columns and "Värde (sek)" in view.columns:
                 rows = []
                 for modul_name, group in view.groupby("Modul", sort=False):
+                    group = group.assign(
+                        __sort_value=pd.to_numeric(group["Värde (sek)"], errors="coerce").fillna(0)
+                    ).sort_values(by="__sort_value", ascending=False, kind="stable").drop(columns=["__sort_value"])
                     spacer_row = {col: "" for col in view.columns}
                     spacer_row["_row_class"] = "spacer-row"
                     rows.append(spacer_row)
