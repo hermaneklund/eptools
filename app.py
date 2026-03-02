@@ -2513,7 +2513,7 @@ def index(request: Request, q: str = ""):
                                 _to_float(allocation.get("CS", "")) if allocation else None,
                                 _to_float(allocation.get("CV", "")) if allocation else None,
                                 _to_float(allocation.get("Ed", "")) if allocation else None,
-                                0.0,
+                                ovrigt_share,
                             ]
                             if v is not None
                         )
