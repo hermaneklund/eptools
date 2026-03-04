@@ -4656,6 +4656,7 @@ def core_sverige(request: Request, ticker: str = ""):
         kurs_by_verdepapper = {}
         fx_by_verdepapper = {}
         sektor_by_verdepapper = {}
+        kupong_by_verdepapper = {}
         if "Kurs" in taggar_df.columns:
             kurs_map = (
                 taggar_df[["Modellnamn", "Kurs"]]
@@ -4689,9 +4690,20 @@ def core_sverige(request: Request, ticker: str = ""):
             sektor_by_verdepapper = dict(
                 zip(sektor_map["modell"].str.casefold(), sektor_map["Sektor"])
             )
+        if "Kupong" in taggar_df.columns:
+            kupong_map = (
+                taggar_df[["Modellnamn", "Kupong"]]
+                .dropna()
+                .assign(modell=lambda d: d["Modellnamn"].astype(str).str.strip())
+            )
+            kupong_map = kupong_map[kupong_map["modell"] != ""]
+            kupong_by_verdepapper = dict(
+                zip(kupong_map["modell"].str.casefold(), kupong_map["Kupong"].apply(_to_float))
+            )
     else:
         fx_by_verdepapper = {}
         sektor_by_verdepapper = {}
+        kupong_by_verdepapper = {}
     gav_by_verdepapper = {}
     if not core_actions.empty and "Värdepapper" in core_actions.columns and "Antal" in core_actions.columns:
         actions = core_actions.copy()
@@ -4751,12 +4763,25 @@ def core_sverige(request: Request, ticker: str = ""):
             if name.upper() in {"KASSA", "SEK"}:
                 row["Värdepapper"] = "Kassa"
                 row["Kurs"] = 1
+                row["Yield"] = None
                 row["FX"] = "SEK"
                 row["Sektor"] = ""
                 row["Värde"] = _to_float(row.get("Antal", 0)) or 0
             else:
                 kurs = kurs_by_verdepapper.get(name_norm, "")
                 row["Kurs"] = kurs
+                kupong_val = _to_float(kupong_by_verdepapper.get(name_norm))
+                kurs_num = _to_float(kurs)
+                if (
+                    kupong_val is None
+                    or kurs_num is None
+                    or not np.isfinite(kupong_val)
+                    or not np.isfinite(kurs_num)
+                    or kurs_num == 0
+                ):
+                    row["Yield"] = None
+                else:
+                    row["Yield"] = kupong_val / kurs_num
                 fx_code = fx_by_verdepapper.get(name_norm, "")
                 row["FX"] = fx_code
                 row["Sektor"] = sektor_by_verdepapper.get(name_norm, "")
@@ -5859,16 +5884,17 @@ def mandat_compliance_export(q: str = ""):
 
 
 @app.get("/mandat/export")
-def mandat_export(q: str = ""):
-    df = _load_sheet("Mandat")
-    if df.empty:
-        export_df = pd.DataFrame()
+def mandat_export(request: Request, q: str = "", sort_by: str = ""):
+    # Reuse the exact same data-preparation logic as the Mandat page
+    # so export mirrors what is shown in the UI.
+    page_resp = mandat_page(request, q=q, sort_by=sort_by, compliance="")
+    columns = page_resp.context.get("columns", [])
+    rows = page_resp.context.get("rows", [])
+    if not rows or not columns:
+        export_df = pd.DataFrame(columns=columns)
     else:
-        number_col = "Number" if "Number" in df.columns else "Nummer"
-        if q and number_col in df.columns:
-            df = df[df[number_col].astype(str).str.strip() == q.strip()]
-        df = df.where(pd.notna(df), "")
-        export_df = df.copy()
+        export_df = pd.DataFrame(rows)
+        export_df = export_df[[c for c in columns if c in export_df.columns]]
     output = BytesIO()
     export_df.to_excel(output, index=False, sheet_name="Mandat")
     output.seek(0)

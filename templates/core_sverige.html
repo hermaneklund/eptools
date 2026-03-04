@@ -99,6 +99,7 @@
                     <th>Utv.</th>
                     <th>FX</th>
                     <th>Värde</th>
+                    <th>Yield</th>
                     <th>Sektor</th>
                     <th>Vikt</th>
                   </tr>
@@ -117,6 +118,7 @@
                       </td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
                       <td>{{ format_cell("Värde i SEK", row["Värde"]) }}</td>
+                      <td>{% if not is_kassa %}{{ format_cell("Yield", row["Yield"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Sektor", row["Sektor"]) }}{% endif %}</td>
                       <td>
                         <div class="vikt-inline">
