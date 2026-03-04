@@ -116,16 +116,6 @@
       </section>
 
       <section class="sheet">
-        <div class="model-donut-grid">
-          {% for table in model_tables %}
-            <div class="donut-panel">
-              <div id="dashboard-donut-{{ loop.index0 }}" style="height:300px; width:100%;"></div>
-            </div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="sheet">
         <div class="dash-card">
           <div class="sidebar-meta" style="margin-bottom:8px;">Weekly/YTD senast hämtat: {{ perf_last_fetched }}</div>
           <div class="model-dashboard-grid">
@@ -162,6 +152,16 @@
               </div>
             {% endfor %}
           </div>
+        </div>
+      </section>
+
+      <section class="sheet">
+        <div class="model-donut-grid">
+          {% for table in model_tables %}
+            <div class="donut-panel">
+              <div id="dashboard-donut-{{ loop.index0 }}" style="height:300px; width:100%;"></div>
+            </div>
+          {% endfor %}
         </div>
       </section>
 
@@ -226,6 +226,11 @@
         const labelsFull = sorted.map(p => String(p.label || ""));
         const labels = labelsFull.map(v => v.length > 8 ? v.slice(0, 8) : v);
         const values = sorted.map(p => Number(p.value || 0));
+        const barColors = labelsFull.map((name) =>
+          String(name || "").trim().toUpperCase() === "KASSA"
+            ? "#9ca3af"
+            : chartColors[idx % chartColors.length]
+        );
         if (!labels.length) {
           target.innerHTML = '<div style="color:#6b7280;font-size:13px;padding:28px 0;text-align:center;">Inga innehav</div>';
           return;
@@ -235,7 +240,7 @@
           x: labels,
           y: values,
           customdata: labelsFull,
-          marker: { color: chartColors[idx % chartColors.length] },
+          marker: { color: barColors },
           hovertemplate: "%{customdata}<br>%{y:.1%}<extra></extra>"
         }], {
           margin: { l: 58, r: 16, t: 20, b: 92 },

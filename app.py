@@ -4380,7 +4380,6 @@ def model_dashboard(request: Request):
             }
             for r in holdings_rows
             if str(r.get("Holding", "")).strip()
-            and str(r.get("Holding", "")).strip().upper() != "KASSA"
             and (_to_float(r.get("Vikt", 0)) or 0) > 0
         ]
         model_tables.append(
