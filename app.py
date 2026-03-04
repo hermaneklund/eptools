@@ -1043,9 +1043,6 @@ async def taggar_delete(request: Request):
 
 @app.post("/taggar-update-kurs")
 def taggar_update_kurs(request: Request):
-    if yf is None:
-        referer = request.headers.get("referer", "/taggar")
-        return RedirectResponse(referer, status_code=303)
     df = _load_taggar_table()
     if df.empty or "Api" not in df.columns:
         referer = request.headers.get("referer", "/taggar")
@@ -1061,21 +1058,23 @@ def taggar_update_kurs(request: Request):
         if ticker in price_cache:
             df.at[idx, "Kurs"] = float(price_cache[ticker])
             continue
-        try:
-            t = yf.Ticker(ticker)
-            fast = getattr(t, "fast_info", {}) or {}
-            price = fast.get("last_price") or fast.get("lastPrice")
-            if price is None:
-                hist = t.history(period="1d")
-                if not hist.empty:
-                    price = float(hist["Close"].iloc[-1])
-            if price is not None:
-                price = round(float(price), 2)
-                price_cache[ticker] = float(price)
-                df.at[idx, "Kurs"] = float(price)
-        except Exception:
-            continue
+        if yf is not None:
+            try:
+                t = yf.Ticker(ticker)
+                fast = getattr(t, "fast_info", {}) or {}
+                price = fast.get("last_price") or fast.get("lastPrice")
+                if price is None:
+                    hist = t.history(period="1d")
+                    if not hist.empty:
+                        price = float(hist["Close"].iloc[-1])
+                if price is not None:
+                    price = round(float(price), 2)
+                    price_cache[ticker] = float(price)
+                    df.at[idx, "Kurs"] = float(price)
+            except Exception:
+                continue
     _save_taggar_table(df)
+    _update_all_models_for_today()
     referer = request.headers.get("referer", "/taggar")
     return RedirectResponse(referer, status_code=303)
 
@@ -1309,8 +1308,7 @@ async def alt_data_add(request: Request):
     return RedirectResponse(url=referer, status_code=303)
 
 
-@app.post("/models-update")
-def models_update(request: Request):
+def _update_all_models_for_today() -> None:
     # Core Sverige (includes OMXS30/OMXSPI)
     coresv_total = _model_total_from_actions("coresvactions")
     today = datetime.now().strftime("%Y-%m-%d")
@@ -1378,6 +1376,9 @@ def models_update(request: Request):
             )
         conn.commit()
 
+@app.post("/models-update")
+def models_update(request: Request):
+    _update_all_models_for_today()
     referer = request.headers.get("referer", "/")
     return RedirectResponse(referer, status_code=303)
 
@@ -2765,6 +2766,13 @@ def taggar(request: Request):
         }
         for k in sorted(detaljerat_set - taggar_set)
     ]
+    only_in_detaljerat = sorted(
+        only_in_detaljerat,
+        key=lambda x: (
+            str(x.get("instrument_type", "")).strip().lower(),
+            str(x.get("name", "")).strip().lower(),
+        ),
+    )
     only_in_taggar = sorted(taggar_map[k] for k in (taggar_set - detaljerat_set))
     return templates.TemplateResponse(
         "taggar.html",
