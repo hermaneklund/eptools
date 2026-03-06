@@ -99,6 +99,7 @@
                 {% for row in ytd_rows %}
                   <td class="perf-model-col">
                     {% if row.Index1YTD is not none %}{{ format_percent_1(row.Index1YTD) }}{% endif %}
+                    {% if row.Index1Name %}<div style="font-size:10px;color:#94a3b8;line-height:1.1;">{{ row.Index1Name }}</div>{% endif %}
                   </td>
                 {% endfor %}
               </tr>
@@ -107,6 +108,7 @@
                 {% for row in ytd_rows %}
                   <td class="perf-model-col">
                     {% if row.Index2YTD is not none %}{{ format_percent_1(row.Index2YTD) }}{% endif %}
+                    {% if row.Index2Name %}<div style="font-size:10px;color:#94a3b8;line-height:1.1;">{{ row.Index2Name }}</div>{% endif %}
                   </td>
                 {% endfor %}
               </tr>
@@ -117,7 +119,7 @@
 
       <section class="sheet">
         <div class="dash-card">
-          <div class="sidebar-meta" style="margin-bottom:8px;">Weekly/YTD senast hämtat: {{ perf_last_fetched }}</div>
+          <div class="sidebar-meta" style="margin-bottom:8px;">Weekly/3M senast hämtat: {{ perf_last_fetched }}</div>
           <div class="model-dashboard-grid">
             {% for table in model_tables %}
               <div class="table-wrap">
@@ -129,8 +131,8 @@
                     <tr>
                       <th>Innehav</th>
                       <th>Utv.</th>
-                      <th>Weekly</th>
-                      <th>YTD</th>
+                      <th>1W</th>
+                      <th>3M</th>
                       <th>Vikt</th>
                     </tr>
                   </thead>
@@ -222,7 +224,13 @@
         const target = document.getElementById(`dashboard-donut-${idx}`);
         if (!target) return;
         const points = Array.isArray(model.donut_points) ? model.donut_points : [];
-        const sorted = [...points].sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+        const sorted = [...points].sort((a, b) => {
+          const aCash = String(a.label || "").trim().toUpperCase() === "KASSA";
+          const bCash = String(b.label || "").trim().toUpperCase() === "KASSA";
+          if (aCash && !bCash) return 1;
+          if (!aCash && bCash) return -1;
+          return Number(b.value || 0) - Number(a.value || 0);
+        });
         const labelsFull = sorted.map(p => String(p.label || ""));
         const labels = labelsFull.map(v => v.length > 8 ? v.slice(0, 8) : v);
         const values = sorted.map(p => Number(p.value || 0));

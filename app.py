@@ -1759,6 +1759,34 @@ def _compute_series_ytd(data_df: pd.DataFrame, series_col: str) -> float | None:
     return (cur_last / prev_last) - 1
 
 
+def _compute_series_3m(data_df: pd.DataFrame, series_col: str) -> float | None:
+    if data_df.empty or "Datum" not in data_df.columns or series_col not in data_df.columns:
+        return None
+    df = data_df.copy()
+    df["Datum"] = _parse_date_series(df["Datum"])
+    df = df.dropna(subset=["Datum"])
+    if df.empty:
+        return None
+    df = df.sort_values(by="Datum")
+    series = pd.to_numeric(df[series_col], errors="coerce")
+    valid = pd.DataFrame({"Datum": df["Datum"], "V": series}).dropna(subset=["V"])
+    if valid.empty:
+        return None
+    last_date = valid["Datum"].iloc[-1]
+    last_val = float(valid["V"].iloc[-1])
+    if not np.isfinite(last_val) or last_val == 0:
+        return None
+    cutoff = last_date - timedelta(days=90)
+    base_candidates = valid[valid["Datum"] <= cutoff]
+    if not base_candidates.empty:
+        base_val = float(base_candidates["V"].iloc[-1])
+    else:
+        base_val = float(valid["V"].iloc[0])
+    if not np.isfinite(base_val) or base_val == 0:
+        return None
+    return (last_val / base_val) - 1
+
+
 def _build_model_holdings_rows(actions_df: pd.DataFrame) -> list[dict]:
     if actions_df.empty or "Värdepapper" not in actions_df.columns or "Antal" not in actions_df.columns:
         return []
@@ -4400,7 +4428,7 @@ def model_dashboard(request: Request):
         }
         ytd_rows.append(ytd_row)
 
-    # Build holding-level weekly/YTD performance from Yahoo ticker mapping in Taggar (API column).
+    # Build holding-level weekly/3M performance from Yahoo ticker mapping in Taggar (API column).
     taggar_df = _load_taggar_table()
     api_by_modelname = {}
     api_col = next((c for c in taggar_df.columns if str(c).strip().lower() == "api"), None)
@@ -4419,7 +4447,7 @@ def model_dashboard(request: Request):
     perf_by_holding: dict[str, dict[str, float | None]] = {}
     perf_cache = _load_model_perf_cache()
     now = datetime.now()
-    cache_ttl = timedelta(hours=24)
+    cache_ttl = timedelta(hours=12)
     cache_map: dict[str, dict] = {}
     if not perf_cache.empty:
         for _, row in perf_cache.iterrows():
@@ -4476,19 +4504,15 @@ def model_dashboard(request: Request):
                 week_candidates = closes[closes.index <= week_cutoff]
                 week_base = float(week_candidates.iloc[-1]) if not week_candidates.empty else None
 
-                if getattr(last_date, "tzinfo", None) is not None:
-                    ytd_start = pd.Timestamp(year=last_date.year, month=1, day=1, tz=last_date.tzinfo)
+                m3_cutoff = last_date - timedelta(days=90)
+                m3_candidates = closes[closes.index <= m3_cutoff]
+                if not m3_candidates.empty:
+                    m3_base = float(m3_candidates.iloc[-1])
                 else:
-                    ytd_start = pd.Timestamp(year=last_date.year, month=1, day=1)
-                ytd_candidates = closes[closes.index < ytd_start]
-                if not ytd_candidates.empty:
-                    ytd_base = float(ytd_candidates.iloc[-1])
-                else:
-                    in_year = closes[closes.index >= ytd_start]
-                    ytd_base = float(in_year.iloc[0]) if not in_year.empty else None
+                    m3_base = float(closes.iloc[0]) if not closes.empty else None
 
                 weekly = (last_val / week_base - 1) if week_base and week_base != 0 else None
-                ytd = (last_val / ytd_base - 1) if ytd_base and ytd_base != 0 else None
+                ytd = (last_val / m3_base - 1) if m3_base and m3_base != 0 else None
                 perf_by_holding[holding_key] = {"weekly": weekly, "ytd": ytd}
                 cache_map[holding_key] = {
                     "ticker": ticker,
