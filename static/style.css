@@ -2020,6 +2020,113 @@ th {
   font-weight: 600;
 }
 
+@media (max-width: 900px) {
+  .page {
+    max-width: 100%;
+    padding: 14px 12px 28px;
+  }
+
+  .search {
+    margin-top: 18px;
+    margin-bottom: 24px;
+  }
+
+  .sheet {
+    padding: 12px;
+    margin-bottom: 20px;
+  }
+
+  .dashboard {
+    padding: 14px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-right {
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  .related-numbers {
+    position: static;
+    margin-top: 12px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .related-list {
+    justify-items: start;
+  }
+
+  .portfolio-header {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .portfolio-left {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .allocation-charts {
+    width: 100%;
+    flex: 1 1 auto;
+    justify-content: center;
+    margin-left: 0;
+  }
+
+  .allocation-charts .chart-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 0;
+  }
+
+  .allocation-charts #chart-tillgang {
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .allocation-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 14px;
+  }
+
+  .allocation-row {
+    min-width: 660px;
+  }
+
+  .sheet.portfolio-holdings .table-wrap.viewer-table {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sheet.portfolio-holdings .table-wrap.viewer-table table {
+    min-width: 760px;
+  }
+
+  .viewer-empty-state {
+    margin: 56px auto 16px;
+    padding: 0 8px;
+  }
+
+  .viewer-empty-title {
+    font-size: 24px;
+  }
+
+  .viewer-empty-subtitle {
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 720px) {
   .search {
     flex-direction: column;
