@@ -282,7 +282,8 @@ def _save_mandat_dyn(rows: list[dict]) -> None:
 
 
 def _load_mandat_table() -> pd.DataFrame:
-    return _load_sheet_from_db("Mandat")
+    df = _load_sheet_from_db("Mandat")
+    return _ensure_mandat_schema(df, persist=not df.empty)
 
 
 def _save_mandat_table(df: pd.DataFrame) -> None:
@@ -297,6 +298,7 @@ def _prepare_mandat_rows_for_compliance(q: str = "") -> tuple[list[dict], str]:
     df = _load_sheet("Mandat")
     if df.empty:
         return [], "Number"
+    df = _ensure_mandat_schema(df)
     number_col = "Number" if "Number" in df.columns else "Nummer"
     for col in FLAG_COLUMNS:
         if col not in df.columns:
@@ -828,6 +830,21 @@ def _get_mandat_rules_text(mandat_value: str) -> list[str]:
 
 TAGGAR_COLUMNS = ["Short Name", "Modul", "Tillgångsslag", "RG", "Kurs", "Modellnamn", "Api", "Sektor", "Kupong", "FX"]
 MANDAT_BOOL_COLUMNS = ["dynamisk", "coresv", "corevä", "edge", "alts", "RG7>25", "20%", "Akt>75", "Akt>25", "Alt>50", "Rä != 0", "Alt!= 0"]
+MANDAT_ALLOCATION_COLUMNS = ["FI", "CS", "CV", "Ed", "Alt", "Övr"]
+
+
+def _ensure_mandat_schema(df: pd.DataFrame, persist: bool = False) -> pd.DataFrame:
+    if df.empty and len(df.columns) == 0:
+        return df
+    updated = df.copy()
+    changed = False
+    for col in MANDAT_ALLOCATION_COLUMNS:
+        if col not in updated.columns:
+            updated[col] = ""
+            changed = True
+    if persist and changed:
+        _save_mandat_table(updated)
+    return updated
 
 
 def _load_taggar_table() -> pd.DataFrame:
@@ -2169,7 +2186,7 @@ def format_cell(column: str, value) -> str:
         return ""
     if col == "fi":
         return f"{_format_number(num * 100, 0)}%"
-    if col in {"alt", "cs", "cv", "ed", "dyncs", "dyncv", "dyned", "dynalt"}:
+    if col in {"alt", "cs", "cv", "ed", "övr", "dyncs", "dyncv", "dyned", "dynalt"}:
         return f"{_format_number(num * 100, 0)}%"
     if col in {"fi % modell", "fi % portfölj"}:
         return _format_number(num * 100, 2) + "%"
@@ -2542,7 +2559,7 @@ def index(request: Request, q: str = ""):
                                 _to_float(allocation.get("CS", "")) if allocation else None,
                                 _to_float(allocation.get("CV", "")) if allocation else None,
                                 _to_float(allocation.get("Ed", "")) if allocation else None,
-                                ovrigt_share,
+                                _to_float(allocation.get("Övr", "")) if allocation else None,
                             ]
                             if v is not None
                         )
@@ -2691,6 +2708,7 @@ def index(request: Request, q: str = ""):
                     "CS": row.get("dynCS" if use_dyn else "CS", ""),
                     "CV": row.get("dynCV" if use_dyn else "CV", ""),
                     "Ed": row.get("dynEd" if use_dyn else "Ed", ""),
+                    "Övr": row.get("Övr", ""),
                 }
                 kund_value = row.get("Kund", "")
                 if kund_value:
@@ -4144,6 +4162,8 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
 def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: str = ""):
     number = q.strip()
     df = _load_sheet("Mandat")
+    if not df.empty:
+        df = _ensure_mandat_schema(df, persist=True)
     number_col = "Number" if "Number" in df.columns else "Nummer"
     for col in FLAG_COLUMNS:
         if col not in df.columns:
@@ -4316,7 +4336,7 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
         "edge",
         "alts",
     ]
-    mid_after_fi_notering = ["FI", "CS", "CV", "Ed", "Alt"]
+    mid_after_fi_notering = ["FI", "CS", "CV", "Ed", "Alt", "Övr"]
     move_right = [
         "Godkännande",
         "Placeringsriktlinjer",
