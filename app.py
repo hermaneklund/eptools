@@ -2166,6 +2166,11 @@ def _coerce_cell_for_column(df: pd.DataFrame, col: str, value):
 def format_cell(column: str, value) -> str:
     if value is None or value == "":
         return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
     col = column.strip().lower()
     if col in {"godkännande", "datum", "date"}:
         try:
@@ -2178,7 +2183,8 @@ def format_cell(column: str, value) -> str:
     try:
         num = float(value)
     except (TypeError, ValueError):
-        return str(value)
+        text = str(value).strip()
+        return "" if text.lower() == "nan" else text
 
     if col == "number":
         return str(int(num)) if num.is_integer() else str(num)
@@ -3747,6 +3753,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                         {
                             "Number": number,
                             "Kund": info.get("Kund", ""),
+                            "Köp/Sälj": "Köp" if (holding_value - position_value) < 0 else "Sälj",
                             "Mandat": info.get("Mandat", ""),
                             "Innehav": holding_display_map.get(holding_norm, holding_norm),
                             "Antal": holding_antal,
@@ -3763,7 +3770,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     if q:
         q_norm = q.strip()
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
-    columns = ["Number", "Kund", "Mandat", "Innehav", "Antal", "Värde (sek)", "Modell", "vs modell"]
+    columns = ["Number", "Kund", "Köp/Sälj", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
     return templates.TemplateResponse(
         "ombalansering.html",
         {
@@ -3949,6 +3956,7 @@ def ombalansering_export(modul: str = ""):
                         {
                             "Number": number,
                             "Kund": info.get("Kund", ""),
+                            "Köp/Sälj": "Köp" if (holding_value - position_value) < 0 else "Sälj",
                             "Mandat": info.get("Mandat", ""),
                             "Innehav": holding_display_map.get(holding_norm, holding_norm),
                             "Antal": holding_antal,
@@ -3963,7 +3971,7 @@ def ombalansering_export(modul: str = ""):
         for r in rows
         if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000
     ]
-    columns = ["Number", "Kund", "Mandat", "Innehav", "Antal", "Värde (sek)", "Modell", "vs modell"]
+    columns = ["Number", "Kund", "Köp/Sälj", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
     df = pd.DataFrame(rows, columns=columns)
     output = BytesIO()
     df.to_excel(output, index=False, sheet_name="Ombalansering")
@@ -3995,6 +4003,14 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
             if pd.notna(kurs):
                 currency_map[key] = float(kurs)
 
+    mandat_number_col = "Number" if "Number" in mandat.columns else "Nummer"
+    mandat_kund_by_number = {}
+    if mandat_number_col in mandat.columns:
+        mandat_number_series = mandat[mandat_number_col].astype(str).str.strip()
+        mandat[mandat_number_col] = mandat_number_series
+        if "Kund" in mandat.columns:
+            mandat_kund_by_number = dict(zip(mandat_number_series, mandat["Kund"].fillna("")))
+
     modul_key = modul.strip().lower()
     modul_map = {
         "core-sverige": ("CS", "Core Sverige"),
@@ -4004,7 +4020,39 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
     }
     selected = modul_map.get(modul_key)
     rows = []
-    if selected:
+    columns = ["Number", "Kund", "Förvaltningsnotering", "Modul", "Kassa", "Position"]
+    position_sum = 0
+    q_value = q.strip()
+    if q_value:
+        search_key = _normalize_key(q_value)
+        short_name_series = detaljerat.get("Short Name", pd.Series(dtype="object")).fillna("").astype(str)
+        normalized_short_names = short_name_series.apply(_normalize_key)
+        exact_mask = normalized_short_names == search_key
+        search_mask = exact_mask if exact_mask.any() else normalized_short_names.str.contains(search_key, na=False)
+        search_results = detaljerat.loc[search_mask].copy()
+        if not search_results.empty:
+            search_results["Number"] = search_results.get("Number", "").fillna("").astype(str).str.strip()
+            search_results = search_results[search_results["Number"].isin(mandat_kund_by_number.keys())]
+            search_results["Antal"] = pd.to_numeric(search_results.get("Available Count", 0), errors="coerce")
+            search_results = search_results[search_results["Antal"].fillna(0) != 0]
+            search_results["Kund"] = search_results["Number"].map(mandat_kund_by_number).fillna("")
+            search_results["Short Name"] = search_results.get("Short Name", "").fillna("")
+            search_results = search_results.sort_values(
+                by=["Short Name", "Number", "Antal"],
+                ascending=[True, True, False],
+                kind="stable",
+            )
+            rows = [
+                {
+                    "Number": row.get("Number", ""),
+                    "Kund": row.get("Kund", ""),
+                    "Short Name": row.get("Short Name", ""),
+                    "Antal": row.get("Antal", ""),
+                }
+                for _, row in search_results.iterrows()
+            ]
+        columns = ["Number", "Kund", "Short Name", "Antal"]
+    elif selected:
         col, label = selected
         if not flags_df.empty and "number" in flags_df.columns:
             number_col = "Number" if "Number" in mandat.columns else "Nummer"
@@ -4136,13 +4184,8 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
                     "Position": position_value,
                 }
             )
+        position_sum = sum(_to_float(r.get("Position", 0)) or 0 for r in rows)
 
-    if q:
-        q_norm = q.strip()
-        rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
-
-    columns = ["Number", "Kund", "Förvaltningsnotering", "Modul", "Kassa", "Position"]
-    position_sum = sum(_to_float(r.get("Position", 0)) or 0 for r in rows)
     return templates.TemplateResponse(
         "modulforandring.html",
         {
@@ -4154,6 +4197,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
             "format_cell": format_cell,
             "position_sum": position_sum,
             "q": q,
+            "search_mode": bool(q_value),
         },
     )
 

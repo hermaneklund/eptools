@@ -79,17 +79,17 @@
 
       <section class="sheet">
         <div class="module-buttons">
-          <a class="module-btn{% if selected_modul == 'core-sverige' %} active{% endif %}" href="/modulforandring?modul=core-sverige{% if q %}&q={{ q }}{% endif %}">Core Sverige</a>
-          <a class="module-btn{% if selected_modul == 'core-varlden' %} active{% endif %}" href="/modulforandring?modul=core-varlden{% if q %}&q={{ q }}{% endif %}">Core Världen</a>
-          <a class="module-btn{% if selected_modul == 'edge' %} active{% endif %}" href="/modulforandring?modul=edge{% if q %}&q={{ q }}{% endif %}">Edge</a>
-          <a class="module-btn{% if selected_modul == 'alternativa' %} active{% endif %}" href="/modulforandring?modul=alternativa{% if q %}&q={{ q }}{% endif %}">Alternativa</a>
+          <a class="module-btn{% if selected_modul == 'core-sverige' %} active{% endif %}" href="/modulforandring?modul=core-sverige">Core Sverige</a>
+          <a class="module-btn{% if selected_modul == 'core-varlden' %} active{% endif %}" href="/modulforandring?modul=core-varlden">Core Världen</a>
+          <a class="module-btn{% if selected_modul == 'edge' %} active{% endif %}" href="/modulforandring?modul=edge">Edge</a>
+          <a class="module-btn{% if selected_modul == 'alternativa' %} active{% endif %}" href="/modulforandring?modul=alternativa">Alternativa</a>
         </div>
         <form class="search" method="get" action="/modulforandring">
           <input
             type="text"
             name="q"
             value="{{ q }}"
-            placeholder="Filtrera på depånummer"
+            placeholder="Sök på Short Name"
             autocomplete="off"
           />
           {% if selected_modul %}
@@ -98,9 +98,6 @@
           <button type="submit">Filter</button>
         </form>
         <h2>Positionsstorlek</h2>
-        {% if rows and rows|length > 0 %}
-          <div class="sheet-sum in-table-box">Summa Position: {{ format_cell("Värde i SEK", position_sum) }}</div>
-        {% endif %}
         {% if rows and rows|length > 0 %}
           <div class="table-wrap">
             <table>
@@ -122,6 +119,8 @@
                           {{ format_cell("Värde i SEK", row[col]) }}
                         {% elif col == "Position" %}
                           {{ format_cell("Värde i SEK", row[col]) }}
+                        {% elif col == "Antal" %}
+                          {{ format_cell("Available Count", row[col]) }}
                         {% else %}
                           {{ format_cell(col, row[col]) }}
                         {% endif %}
@@ -133,7 +132,7 @@
             </table>
           </div>
         {% else %}
-          <p class="empty">Välj en modul för att visa positionsstorlekar.</p>
+          <p class="empty">{% if search_mode %}Inga depåer hittades för det innehavet.{% endif %}</p>
         {% endif %}
       </section>
     </main>

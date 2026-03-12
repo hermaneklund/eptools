@@ -101,7 +101,7 @@
             {% endif %}
             <button type="submit">Filter</button>
           </form>
-          <h2>Ombalansering{% if selected_label %} – {{ selected_label }}{% endif %}</h2>
+          <h2>Ombalansering</h2>
           {% if rows and rows|length > 0 %}
             <div class="table-wrap">
             <table>
@@ -140,7 +140,7 @@
             </table>
             </div>
           {% else %}
-            <p class="empty">Välj en modul för att visa portföljer.</p>
+            <p class="empty"></p>
           {% endif %}
         </section>
         <aside class="small-table strategy-card">
