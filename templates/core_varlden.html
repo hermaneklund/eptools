@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -40,6 +40,7 @@
           </button>
           <div class="sidebar-subnav" id="forvaltning-subnav">
             <a href="/dashboard" class="sidebar-link">Dashboard</a>
+            <a href="/investeringspolicy" class="sidebar-link" target="_blank" rel="noopener noreferrer">Investeringspolicy</a>
             <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
             <a href="/edge" class="sidebar-link">Edge</a>
             <a href="/alternativa" class="sidebar-link">Alternativa</a>
@@ -112,7 +113,7 @@
                       <td>{% if not is_kassa %}{{ format_cell("GAV", row["GAV"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["Kurs"]) }}{% endif %}</td>
                       {% set utv_val = row["Utv"] %}
-                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.10 %}utv-negative{% elif utv_val is not none and utv_val >= 0.20 %}utv-positive{% endif %}{% endif %}">
+                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.30 %}utv-negative{% elif utv_val is not none and utv_val >= 0.30 %}utv-positive{% endif %}{% endif %}">
                         {% if not is_kassa %}{{ format_cell("Utv.", utv_val) }}{% endif %}
                       </td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
@@ -591,3 +592,8 @@
     </script>
   </body>
 </html>
+
+
+
+
+

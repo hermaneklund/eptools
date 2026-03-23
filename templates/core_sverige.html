@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -40,6 +40,7 @@
           </button>
           <div class="sidebar-subnav" id="forvaltning-subnav">
             <a href="/dashboard" class="sidebar-link">Dashboard</a>
+            <a href="/investeringspolicy" class="sidebar-link" target="_blank" rel="noopener noreferrer">Investeringspolicy</a>
             <a href="/core-sverige" class="sidebar-link">Core Sverige</a>
             <a href="/edge" class="sidebar-link">Edge</a>
             <a href="/alternativa" class="sidebar-link">Alternativa</a>
@@ -101,6 +102,7 @@
                     <th>Värde</th>
                     <th>Yield</th>
                     <th>Sektor</th>
+                    <th>S/L</th>
                     <th>Vikt</th>
                   </tr>
                 </thead>
@@ -108,18 +110,32 @@
                     {% for row in holdings_rows %}
                     {% set is_kassa = row['Värdepapper']|upper == 'KASSA' %}
                     <tr class="{% if is_kassa %}kassa-row{% endif %}">
-                      <td>{{ row["Värdepapper"] }}</td>
+                      <td>
+                        {{ row["Värdepapper"] }}
+                        {% if not is_kassa and row["GuardrailFlag"] %}
+                          <span class="holding-guardrail-flag" title="{{ row['GuardrailTitle'] }}">⚑</span>
+                        {% endif %}
+                      </td>
                       <td>{% if not is_kassa %}{{ format_cell("Antal", row["Antal"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("GAV", row["GAV"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["Kurs"]) }}{% endif %}</td>
                       {% set utv_val = row["Utv"] %}
-                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.10 %}utv-negative{% elif utv_val is not none and utv_val >= 0.20 %}utv-positive{% endif %}{% endif %}">
+                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.30 %}utv-negative{% elif utv_val is not none and utv_val >= 0.30 %}utv-positive{% endif %}{% endif %}">
                         {% if not is_kassa %}{{ format_cell("Utv.", utv_val) }}{% endif %}
                       </td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
                       <td>{{ format_cell("Värde i SEK", row["Värde"]) }}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Yield", row["Yield"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Sektor", row["Sektor"]) }}{% endif %}</td>
+                      <td>
+                        {% if not is_kassa %}
+                          <form method="post" action="/model-stoploss-update" class="stoploss-inline-form">
+                            <input type="hidden" name="model" value="core-sverige" />
+                            <input type="hidden" name="holding" value="{{ row['Värdepapper'] }}" />
+                            <input type="text" name="stoploss" value="{{ row['SL'] if row['SL'] is not none else '' }}" class="stoploss-input" inputmode="decimal" onchange="this.form.requestSubmit()" />
+                          </form>
+                        {% endif %}
+                      </td>
                       <td>
                         <div class="vikt-inline">
                           <span>{{ format_percent_1(row["Vikt"]) }}</span>
@@ -593,3 +609,8 @@
     </script>
   </body>
 </html>
+
+
+
+
+

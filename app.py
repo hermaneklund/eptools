@@ -11,7 +11,7 @@ import unicodedata
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 try:
@@ -48,6 +48,14 @@ DISPLAY_MAP = {
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+@app.get("/investeringspolicy")
+def investeringspolicy():
+    return FileResponse(
+        BASE_DIR / "static" / "investeringspolicy.html",
+        media_type="text/html; charset=utf-8",
+    )
 
 
 @app.on_event("startup")
@@ -1694,6 +1702,20 @@ def _model_weights_for_modul(modul_label: str, taggar_df: pd.DataFrame) -> dict[
     return {k: v / total_with_cash for k, v in values_by_short.items()}
 
 
+def _model_guardrail_breaches(holdings_rows: list[dict], limit: float) -> list[str]:
+    breaches: list[str] = []
+    for row in holdings_rows or []:
+        holding = str(row.get("Värdepapper", "")).strip()
+        if holding.upper() in {"", "KASSA", "SEK"}:
+            continue
+        weight = _to_float(row.get("Vikt"))
+        if weight is None or not np.isfinite(weight):
+            continue
+        if weight > limit:
+            breaches.append(f"{holding}: {format_percent_1(weight)}")
+    return breaches
+
+
 def _latest_nettokassa(actions: pd.DataFrame) -> float | None:
     if actions is None or actions.empty or "Nettokassa" not in actions.columns:
         return None
@@ -1741,6 +1763,62 @@ def _save_model_perf_cache(cache_df: pd.DataFrame) -> None:
     with sqlite3.connect(DB_PATH) as conn:
         _ensure_model_perf_cache_table(conn)
         cache_df.to_sql("model_perf_cache", conn, if_exists="replace", index=False)
+
+
+def _ensure_model_stoploss_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS model_stoploss (
+            model TEXT NOT NULL,
+            holding_key TEXT NOT NULL,
+            stoploss REAL,
+            PRIMARY KEY (model, holding_key)
+        )
+        """
+    )
+
+
+def _load_model_stoplosses(model: str) -> dict[str, float]:
+    if not DB_PATH.exists():
+        return {}
+    model_key = str(model).strip().lower()
+    with sqlite3.connect(DB_PATH) as conn:
+        _ensure_model_stoploss_table(conn)
+        rows = conn.execute(
+            "SELECT holding_key, stoploss FROM model_stoploss WHERE model = ?",
+            (model_key,),
+        ).fetchall()
+    result: dict[str, float] = {}
+    for holding_key, stoploss in rows:
+        stoploss_num = _to_float(stoploss)
+        if holding_key and stoploss_num is not None and np.isfinite(stoploss_num):
+            result[str(holding_key)] = float(stoploss_num)
+    return result
+
+
+def _save_model_stoploss(model: str, holding: str, stoploss) -> None:
+    model_key = str(model).strip().lower()
+    holding_key = str(holding).strip().casefold()
+    if not model_key or not holding_key:
+        return
+    stoploss_num = _to_float(stoploss)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        _ensure_model_stoploss_table(conn)
+        if stoploss_num is None or not np.isfinite(stoploss_num):
+            conn.execute(
+                "DELETE FROM model_stoploss WHERE model = ? AND holding_key = ?",
+                (model_key, holding_key),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO model_stoploss (model, holding_key, stoploss)
+                VALUES (?, ?, ?)
+                ON CONFLICT(model, holding_key) DO UPDATE SET stoploss = excluded.stoploss
+                """,
+                (model_key, holding_key, float(stoploss_num)),
+            )
 
 
 def _load_first_existing_table(candidates: list[str]) -> pd.DataFrame:
@@ -2201,7 +2279,10 @@ def format_cell(column: str, value) -> str:
     if col == "att köpa":
         return _format_number(num, 1)
     if col in {"gav", "utv.", "kurs"}:
-        return _format_number(num * 100, 1) + "%" if col == "utv." else _format_number(num, 1)
+        if col == "utv.":
+            prefix = "+" if num > 0 else ""
+            return prefix + _format_number(num * 100, 1) + "%"
+        return _format_number(num, 1)
     if "price" in col:
         return _format_number(num, 2)
     return _format_number(num, 0)
@@ -4898,6 +4979,35 @@ def core_sverige(request: Request, ticker: str = ""):
         other_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() != "KASSA"]
         other_rows = sorted(other_rows, key=lambda r: _to_float(r.get("Vikt", 0)) or 0, reverse=True)
         holdings_rows = other_rows + sek_rows
+    stoploss_map = _load_model_stoplosses("core-sverige")
+    for row in holdings_rows:
+        holding_name = str(row.get("Värdepapper", "")).strip()
+        holding_key = holding_name.casefold()
+        stoploss = stoploss_map.get(holding_key)
+        row["SL"] = stoploss
+        weight = _to_float(row.get("Vikt"))
+        kurs_val = _to_float(row.get("Kurs"))
+        weight_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and weight is not None
+            and np.isfinite(weight)
+            and weight > 0.10
+        )
+        stoploss_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and stoploss is not None
+            and kurs_val is not None
+            and np.isfinite(stoploss)
+            and np.isfinite(kurs_val)
+            and kurs_val < stoploss
+        )
+        row["GuardrailFlag"] = weight_breach or stoploss_breach
+        reasons = []
+        if weight_breach:
+            reasons.append(f"Vikt över {format_percent_1(0.10)}")
+        if stoploss_breach:
+            reasons.append("Kurs under stoploss")
+        row["GuardrailTitle"] = " / ".join(reasons)
     sector_totals = {}
     utv_points = []
     if holdings_rows:
@@ -4925,6 +5035,8 @@ def core_sverige(request: Request, ticker: str = ""):
         core_actions = core_actions.copy()
         core_actions["__date"] = _parse_date_series(core_actions["Datum"])
         core_actions = core_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
+    guardrail_limit = 0.10
+    guardrail_breaches = _model_guardrail_breaches(holdings_rows, guardrail_limit)
     data_cols = core_data.columns.tolist() if not core_data.empty else []
     action_cols = [c for c in core_actions.columns.tolist() if c != "row_id"] if not core_actions.empty else []
     data_rows = _safe_rows(core_data) if not core_data.empty else []
@@ -4942,6 +5054,8 @@ def core_sverige(request: Request, ticker: str = ""):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "guardrail_limit": guardrail_limit,
+            "guardrail_breaches": guardrail_breaches,
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
@@ -5160,6 +5274,35 @@ def edge(request: Request):
         other_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() != "KASSA"]
         other_rows = sorted(other_rows, key=lambda r: _to_float(r.get("Vikt", 0)) or 0, reverse=True)
         holdings_rows = other_rows + sek_rows
+    stoploss_map = _load_model_stoplosses("edge")
+    for row in holdings_rows:
+        holding_name = str(row.get("Värdepapper", "")).strip()
+        holding_key = holding_name.casefold()
+        stoploss = stoploss_map.get(holding_key)
+        row["SL"] = stoploss
+        weight = _to_float(row.get("Vikt"))
+        kurs_val = _to_float(row.get("Kurs"))
+        weight_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and weight is not None
+            and np.isfinite(weight)
+            and weight > 0.11
+        )
+        stoploss_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and stoploss is not None
+            and kurs_val is not None
+            and np.isfinite(stoploss)
+            and np.isfinite(kurs_val)
+            and kurs_val < stoploss
+        )
+        row["GuardrailFlag"] = weight_breach or stoploss_breach
+        reasons = []
+        if weight_breach:
+            reasons.append(f"Vikt över {format_percent_1(0.11)}")
+        if stoploss_breach:
+            reasons.append("Kurs under stoploss")
+        row["GuardrailTitle"] = " / ".join(reasons)
     sector_totals = {}
     utv_points = []
     if holdings_rows:
@@ -5187,6 +5330,8 @@ def edge(request: Request):
         edge_actions = edge_actions.copy()
         edge_actions["__date"] = _parse_date_series(edge_actions["Datum"])
         edge_actions = edge_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
+    guardrail_limit = 0.11
+    guardrail_breaches = _model_guardrail_breaches(holdings_rows, guardrail_limit)
     data_cols = edge_data.columns.tolist() if not edge_data.empty else []
     action_cols = [c for c in edge_actions.columns.tolist() if c != "row_id"] if not edge_actions.empty else []
     data_rows = _safe_rows(edge_data) if not edge_data.empty else []
@@ -5201,6 +5346,8 @@ def edge(request: Request):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "guardrail_limit": guardrail_limit,
+            "guardrail_breaches": guardrail_breaches,
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
@@ -5235,6 +5382,19 @@ async def model_actions_add(request: Request):
     }
     _append_model_action(table, payload)
     return RedirectResponse(url=f"/{model}", status_code=303)
+
+
+@app.post("/model-stoploss-update")
+async def model_stoploss_update(request: Request):
+    form = await request.form()
+    model = (form.get("model") or "").strip().lower()
+    holding = str(form.get("holding") or "").strip()
+    stoploss = form.get("stoploss")
+    referer = request.headers.get("referer", f"/{model}" if model else "/")
+    if model not in {"core-sverige", "edge", "alternativa"} or not holding:
+        return RedirectResponse(referer, status_code=303)
+    _save_model_stoploss(model, holding, stoploss)
+    return RedirectResponse(referer, status_code=303)
 
 
 @app.post("/model-actions-reweight")
@@ -5656,6 +5816,35 @@ def alternativa(request: Request):
         other_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() != "KASSA"]
         other_rows = sorted(other_rows, key=lambda r: _to_float(r.get("Vikt", 0)) or 0, reverse=True)
         holdings_rows = other_rows + sek_rows
+    stoploss_map = _load_model_stoplosses("alternativa")
+    for row in holdings_rows:
+        holding_name = str(row.get("Värdepapper", "")).strip()
+        holding_key = holding_name.casefold()
+        stoploss = stoploss_map.get(holding_key)
+        row["SL"] = stoploss
+        weight = _to_float(row.get("Vikt"))
+        kurs_val = _to_float(row.get("Kurs"))
+        weight_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and weight is not None
+            and np.isfinite(weight)
+            and weight > 0.40
+        )
+        stoploss_breach = bool(
+            holding_name.upper() not in {"", "KASSA", "SEK"}
+            and stoploss is not None
+            and kurs_val is not None
+            and np.isfinite(stoploss)
+            and np.isfinite(kurs_val)
+            and kurs_val < stoploss
+        )
+        row["GuardrailFlag"] = weight_breach or stoploss_breach
+        reasons = []
+        if weight_breach:
+            reasons.append(f"Vikt över {format_percent_1(0.40)}")
+        if stoploss_breach:
+            reasons.append("Kurs under stoploss")
+        row["GuardrailTitle"] = " / ".join(reasons)
     if not alt_data.empty and "Datum" in alt_data.columns:
         alt_data = alt_data.copy()
         alt_data["__date"] = _parse_date_series(alt_data["Datum"])
@@ -5666,6 +5855,8 @@ def alternativa(request: Request):
         alt_actions = alt_actions.copy()
         alt_actions["__date"] = _parse_date_series(alt_actions["Datum"])
         alt_actions = alt_actions.sort_values(by="__date", ascending=False).drop(columns=["__date"])
+    guardrail_limit = 0.40
+    guardrail_breaches = _model_guardrail_breaches(holdings_rows, guardrail_limit)
     data_cols = alt_data.columns.tolist() if not alt_data.empty else []
     action_cols = [c for c in alt_actions.columns.tolist() if c != "row_id"] if not alt_actions.empty else []
     data_rows = _safe_rows(alt_data) if not alt_data.empty else []
@@ -5680,6 +5871,8 @@ def alternativa(request: Request):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "guardrail_limit": guardrail_limit,
+            "guardrail_breaches": guardrail_breaches,
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
