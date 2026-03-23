@@ -2337,8 +2337,12 @@ def index(request: Request, q: str = ""):
             else:
                 results[sheet] = {"title": sheet, "columns": [], "rows": []}
         return templates.TemplateResponse(
-            "index.html",
-            {
+
+            request=request,
+
+            name="index.html",
+
+            context={
                 "request": request,
                 "q": q,
                 "results": results,
@@ -2741,8 +2745,15 @@ def index(request: Request, q: str = ""):
         overview_compliance_tooltip_lines = [line for line in tooltip_lines if str(line).strip() != ""]
 
     return templates.TemplateResponse(
-        "index.html",
-        {
+
+
+        request=request,
+
+
+        name="index.html",
+
+
+        context={
             "request": request,
             "q": q,
             "results": results,
@@ -2827,8 +2838,12 @@ def taggar(request: Request):
     )
     only_in_taggar = sorted(taggar_map[k] for k in (taggar_set - detaljerat_set))
     return templates.TemplateResponse(
-        "taggar.html",
-        {
+
+        request=request,
+
+        name="taggar.html",
+
+        context={
             "request": request,
             "columns": cols,
             "rows": rows,
@@ -3036,8 +3051,12 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
 def fixed_income(request: Request, sort_by: str = "att_kopa"):
     ctx = _build_fixed_income_context(sort_by=sort_by)
     return templates.TemplateResponse(
-        "fixed_income.html",
-        {
+
+        request=request,
+
+        name="fixed_income.html",
+
+        context={
             "request": request,
             "columns": ctx["columns"],
             "rows": ctx["rows"],
@@ -3206,8 +3225,15 @@ def fixed_income_innehav(request: Request, stibor: str = ""):
                     )
 
     return templates.TemplateResponse(
-        "fixed_income_innehav.html",
-        {
+
+
+        request=request,
+
+
+        name="fixed_income_innehav.html",
+
+
+        context={
             "request": request,
             "columns": columns,
             "rows": rows,
@@ -3250,8 +3276,12 @@ def mina_kunder(request: Request, advisor: str = ""):
 
     if mandat.empty:
         return templates.TemplateResponse(
-            "mina_kunder.html",
-            {
+
+            request=request,
+
+            name="mina_kunder.html",
+
+            context={
                 "request": request,
                 "rows": [],
                 "columns": [],
@@ -3392,8 +3422,15 @@ def mina_kunder(request: Request, advisor: str = ""):
     ]
 
     return templates.TemplateResponse(
-        "mina_kunder.html",
-        {
+
+
+        request=request,
+
+
+        name="mina_kunder.html",
+
+
+        context={
             "request": request,
             "rows": rows,
             "columns": columns,
@@ -3415,8 +3452,12 @@ def uppbyggnader(request: Request):
 
     if mandat.empty:
         return templates.TemplateResponse(
-            "uppbyggnader.html",
-            {
+
+            request=request,
+
+            name="uppbyggnader.html",
+
+            context={
                 "request": request,
                 "rows": [],
                 "columns": [],
@@ -3562,8 +3603,12 @@ def uppbyggnader(request: Request):
     rows = sorted(rows, key=lambda r: (_to_float(r.get("Värde", 0)) or 0), reverse=True)
     columns = ["Number", "Kund", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
     return templates.TemplateResponse(
-        "uppbyggnader.html",
-        {
+
+        request=request,
+
+        name="uppbyggnader.html",
+
+        context={
             "request": request,
             "rows": rows,
             "columns": columns,
@@ -3772,8 +3817,12 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
     columns = ["Number", "Kund", "Köp/Sälj", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
     return templates.TemplateResponse(
-        "ombalansering.html",
-        {
+
+        request=request,
+
+        name="ombalansering.html",
+
+        context={
             "request": request,
             "columns": columns,
             "rows": rows,
@@ -4187,8 +4236,15 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
         position_sum = sum(_to_float(r.get("Position", 0)) or 0 for r in rows)
 
     return templates.TemplateResponse(
-        "modulforandring.html",
-        {
+
+
+        request=request,
+
+
+        name="modulforandring.html",
+
+
+        context={
             "request": request,
             "selected_modul": modul_key,
             "selected_label": selected[1] if selected else "",
@@ -4410,8 +4466,15 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
     compliance_rows = _build_compliance_rows(rows, number_col) if compliance else []
 
     return templates.TemplateResponse(
-        "mandat.html",
-        {
+
+
+        request=request,
+
+
+        name="mandat.html",
+
+
+        context={
             "request": request,
             "q": q,
             "columns": columns,
@@ -4632,8 +4695,15 @@ def model_dashboard(request: Request):
             row["YTDPerf"] = p.get("ytd")
 
     return templates.TemplateResponse(
-        "dashboard.html",
-        {
+
+
+        request=request,
+
+
+        name="dashboard.html",
+
+
+        context={
             "request": request,
             "model_tables": model_tables,
             "ytd_rows": ytd_rows,
@@ -4930,8 +5000,12 @@ def core_sverige(request: Request, ticker: str = ""):
     data_rows = _safe_rows(core_data) if not core_data.empty else []
     action_rows = _safe_rows(core_actions) if not core_actions.empty else []
     return templates.TemplateResponse(
-        "core_sverige.html",
-        {
+
+        request=request,
+
+        name="core_sverige.html",
+
+        context={
             "request": request,
             "ticker": ticker,
             "price": price,
@@ -5192,8 +5266,12 @@ def edge(request: Request):
     data_rows = _safe_rows(edge_data) if not edge_data.empty else []
     action_rows = _safe_rows(edge_actions) if not edge_actions.empty else []
     return templates.TemplateResponse(
-        "edge.html",
-        {
+
+        request=request,
+
+        name="edge.html",
+
+        context={
             "request": request,
             "data_cols": data_cols,
             "data_rows": data_rows,
@@ -5671,8 +5749,12 @@ def alternativa(request: Request):
     data_rows = _safe_rows(alt_data) if not alt_data.empty else []
     action_rows = _safe_rows(alt_actions) if not alt_actions.empty else []
     return templates.TemplateResponse(
-        "alternativa.html",
-        {
+
+        request=request,
+
+        name="alternativa.html",
+
+        context={
             "request": request,
             "data_cols": data_cols,
             "data_rows": data_rows,
@@ -5927,8 +6009,12 @@ def core_varlden(request: Request):
     data_rows = _safe_rows(corev_data) if not corev_data.empty else []
     action_rows = _safe_rows(corev_actions) if not corev_actions.empty else []
     return templates.TemplateResponse(
-        "core_varlden.html",
-        {
+
+        request=request,
+
+        name="core_varlden.html",
+
+        context={
             "request": request,
             "data_cols": data_cols,
             "data_rows": data_rows,
