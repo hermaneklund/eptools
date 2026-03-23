@@ -3056,15 +3056,43 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
     mandat = _load_sheet("Mandat")
     detaljerat = _load_sheet("Detaljerat")
     taggar_df = _load_sheet("Taggar")
-    taggar_map = {}
-    if "Short Name" in taggar_df.columns:
-        for _, row in taggar_df.iterrows():
-            key = _normalize_key(row.get("Short Name", ""))
-            if not key:
-                continue
-            taggar_map[key] = row.to_dict()
-    detaljerat = _load_sheet("Detaljerat")
-    taggar_df = _load_sheet("Taggar")
+    flags_df = _load_sheet("mandat_flags")
+    dyn_df = _load_sheet("mandat_dyn")
+
+    number_col = "Number" if "Number" in mandat.columns else "Nummer"
+    if not mandat.empty and number_col not in mandat.columns:
+        mandat[number_col] = ""
+
+    if not flags_df.empty and "number" in flags_df.columns:
+        flags_merge = flags_df.rename(columns={"number": number_col}).copy()
+        flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
+        merged_col = "dynamisk_flag"
+        if merged_col in mandat.columns:
+            if "dynamisk" in mandat.columns:
+                mandat["dynamisk"] = mandat[merged_col].fillna(mandat["dynamisk"])
+            else:
+                mandat["dynamisk"] = mandat[merged_col].fillna(0)
+            mandat.drop(columns=[merged_col], inplace=True)
+
+    if not dyn_df.empty and "number" in dyn_df.columns:
+        dyn_merge = dyn_df.rename(columns={"number": number_col}).copy()
+        dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
+        for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
+            dcol_dyn = f"{dcol}_dyn"
+            if dcol_dyn in mandat.columns:
+                if dcol in mandat.columns:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
+                else:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(0)
+                mandat.drop(columns=[dcol_dyn], inplace=True)
+
+    for col in ["dynamisk", "Alt", "CS", "CV", "Ed", "Övr", "dynAlt", "dynCS", "dynCV", "dynEd"]:
+        if col not in mandat.columns:
+            mandat[col] = 0
 
     taggar_map = {}
     currency_map = {}
@@ -3132,12 +3160,21 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
                 tillgang = tillgang.where(tillgang != "", fallback)
             valuta_total = base_value.where(tillgang.str.lower() == "valuta").sum(skipna=True)
 
+        use_dyn = _to_float(row.get("dynamisk", 0)) == 1
+        allocation = {
+            "Alt": row.get("dynAlt" if use_dyn else "Alt", ""),
+            "CS": row.get("dynCS" if use_dyn else "CS", ""),
+            "CV": row.get("dynCV" if use_dyn else "CV", ""),
+            "Ed": row.get("dynEd" if use_dyn else "Ed", ""),
+            "Övr": row.get("Övr", ""),
+        }
         model_sum = sum(
             v for v in [
-                _to_float(row.get("Alt", "")),
-                _to_float(row.get("CS", "")),
-                _to_float(row.get("CV", "")),
-                _to_float(row.get("Ed", "")),
+                _to_float(allocation.get("Alt", "")),
+                _to_float(allocation.get("CS", "")),
+                _to_float(allocation.get("CV", "")),
+                _to_float(allocation.get("Ed", "")),
+                _to_float(allocation.get("Övr", "")),
             ]
             if v is not None
         )
