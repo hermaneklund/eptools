@@ -112,7 +112,7 @@
                       <td>{% if not is_kassa %}{{ format_cell("GAV", row["GAV"]) }}{% endif %}</td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["Kurs"]) }}{% endif %}</td>
                       {% set utv_val = row["Utv"] %}
-                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.10 %}utv-negative{% elif utv_val is not none and utv_val >= 0.20 %}utv-positive{% endif %}{% endif %}">
+                      <td class="{% if not is_kassa %}{% if utv_val is not none and utv_val <= -0.30 %}utv-negative{% elif utv_val is not none and utv_val >= 0.30 %}utv-positive{% endif %}{% endif %}">
                         {% if not is_kassa %}{{ format_cell("Utv.", utv_val) }}{% endif %}
                       </td>
                       <td>{% if not is_kassa %}{{ format_cell("Kurs", row["FX"]) }}{% endif %}</td>
