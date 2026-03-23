@@ -46,6 +46,149 @@ DISPLAY_MAP = {
     ],
 }
 
+MODEL_POLICY = {
+    "core-sverige": {
+        "title": "Investeringspolicy",
+        "intro": "En fokuserad aktiemodul med större stabila svenska bolag. Mål: överprestera OMXS30 varje år. Avkastningsmål +10% inom 12 mån.",
+        "sections": [
+            {
+                "title": "Tvingande krav",
+                "items": [
+                    ("Investering", "Alltid fullinvesterad (tillfällig likvid vid omviktning ok)"),
+                    ("Antal innehav", "15 bolag som riktvärde (± 2)"),
+                    ("Diversifiering", "Med hänsyn till bransch"),
+                    ("OMXS30-exponering", "Minst 50% mot bolag listade på OMXS30"),
+                    ("Direktavkastning", "Genomsnitt ≥ 3%/år (modul), ≥ 1,5% per innehav (utd. + återköp)"),
+                    ("Market cap", "Minst 5 mdr SEK"),
+                    ("Listning", "Enbart OMX Nasdaq Stockholm, i SEK"),
+                    ("ADTV-krav", "Daglig snittvolym ≥ 4× orderns volym"),
+                    ("Max vikt", "10% av modulens totala värde"),
+                ],
+            },
+            {
+                "title": "Ledande krav",
+                "items": [
+                    ("Avkastningskrav", "Fundamental analys som motiverar ≥ 10% inom 12–24 mån"),
+                    ("Kvalitetskrav", "Stabila karaktärsdrag: utdelningshistorik, skuldsättning, lönsamhet"),
+                ],
+            },
+            {
+                "title": "Riskhantering",
+                "items": [
+                    ("Drawdown-varning", "−10% från topp → pausa nya köp, omvärdera alla innehav"),
+                    ("Profit-taking", "+25% från GAV → sälj minst 25% av positionen"),
+                    ("Stoploss", "Köpkurs − 8×ATR (minst 15%)"),
+                    ("Position sizing", "Max = 1,5% portföljrisk / (8×ATR)"),
+                ],
+            },
+        ],
+    },
+    "edge": {
+        "title": "Investeringspolicy",
+        "intro": "Kvalitetsbolag med hög tillväxtpotential inom växande strukturella områden. Mål: överprestera OMXS Small Cap varje år. Avkastningsmål +30% över 2 år.",
+        "sections": [
+            {
+                "title": "Tvingande krav",
+                "items": [
+                    ("Investering", "Alltid fullinvesterad"),
+                    ("Antal innehav", "15 bolag som riktvärde (± 2)"),
+                    ("Utländska börser", "Max 25% av innehaven"),
+                    ("Diversifiering", "Med hänsyn till bransch"),
+                    ("ADTV-krav", "Daglig snittvolym > ¼ av orderns volym"),
+                    ("Max vikt", "11% av modulens totala värde"),
+                    ("Inköp", "Delas alltid i 2 omgångar"),
+                ],
+            },
+            {
+                "title": "Ledande krav",
+                "items": [
+                    ("Tillväxtkrav", "Omsättningstillväxt ≥ 15%/år kommande 2 år"),
+                    ("Avkastningskrav", "Fundamental analys som motiverar ≥ 30% inom 12–24 mån"),
+                    ("Small cap", "Bolag utanför OMXS30 prioriteras"),
+                ],
+            },
+            {
+                "title": "Riskhantering",
+                "items": [
+                    ("Drawdown-varning", "−10% från topp → pausa nya köp, omvärdera alla innehav"),
+                    ("Profit-taking", "+30% från GAV → sälj minst 30%, aktivera rullande stop"),
+                    ("Rullande stop", "High − 4×ATR (flyttas enbart uppåt)"),
+                    ("Stoploss", "Köpkurs − 6×ATR (minst 15%)"),
+                ],
+            },
+        ],
+    },
+    "alternativa": {
+        "title": "Investeringspolicy",
+        "intro": "Brett placeringsmandat som syftar till att sänka portföljens totala risk. Ej avsedd att investeras i separat. Avkastningsmål 8% årligen. Horisont 3 mån – 3 år.",
+        "sections": [
+            {
+                "title": "Tvingande krav",
+                "items": [
+                    ("Kombinationsmodul", "Enbart i kombination med andra moduler"),
+                    ("Mandat", "Aktier, räntor, råvaru-ETF:er, hedge-ETF:er, krypto-ETF:er, strukturerade produkter, preferensaktier"),
+                    ("Valuta", "Får vara 100% i utländsk valuta"),
+                    ("Antal innehav", "5 riktvärde, max 8"),
+                    ("Max vikt", "40% av modulens storlek"),
+                    ("ETF-volym", "Minst 500 MSEK i instrumentvolym"),
+                    ("Hävstång", "Tillåtet (ej riskgrupp 8). Inverterade max 2×"),
+                ],
+            },
+            {
+                "title": "Ledande krav",
+                "items": [
+                    ("ADTV-krav", "Betydligt större än orderns volym"),
+                    ("Fysiska tillgångar", "ETF:er ska ha fysiska underliggande tillgångar"),
+                ],
+            },
+            {
+                "title": "Riskhantering",
+                "items": [
+                    ("Drawdown-varning", "−10% från topp → pausa nya köp, omvärdera alla innehav"),
+                    ("Profit-taking", "+30% från GAV → sälj minst 30%, aktivera rullande stop"),
+                    ("Rullande stop", "High − 4×ATR (flyttas enbart uppåt)"),
+                    ("Stoploss", "Köpkurs − 4×ATR (minst 15%)"),
+                ],
+            },
+        ],
+    },
+    "core-varlden": {
+        "title": "Investeringspolicy",
+        "intro": "En fokuserad och kvantbaserad aktiemodul med stabila globala bolag som visar starkt momentum. Kvartalsvis omallokering baserad på systematisk ranking.",
+        "sections": [
+            {
+                "title": "Tvingande krav",
+                "items": [
+                    ("Investering", "Alltid fullinvesterad (tillfällig likvid vid omviktning ok)"),
+                    ("Antal innehav", "15 bolag som riktvärde (± 2)"),
+                    ("Diversifiering", "Med hänsyn till bransch och geografi"),
+                    ("Valuta", "Får vara 100% i utländsk valuta"),
+                    ("Börser", "Internationella börser där E&P har handelstillgång"),
+                    ("Market cap", "Minst 30 mdr SEK"),
+                    ("Lönsamhet", "Innehav ska vara lönsamma"),
+                    ("Value-ranking", "EV/EBIT, ROIC, Yield, Momentum — topp 20 väljs ut"),
+                    ("Leader-ranking", "Size, Momentum — topp 20 väljs ut"),
+                    ("Urval", "Manuellt 15st: 10st Value + 5st Leader"),
+                ],
+            },
+            {
+                "title": "Omallokeringsregler",
+                "items": [
+                    ("Frekvens", "Kvartalsvis — 7 av 15 innehav byts ut"),
+                    ("Behåll (8st)", "Prio 1: finns kvar i top 20+20. Prio 2: högst avkastning sedan förra omallokeringen"),
+                    ("Köp (7st)", "Manuellt urval från Value Rank och Leader Rank"),
+                ],
+            },
+            {
+                "title": "Riskhantering",
+                "items": [
+                    ("Kommentar", "Kvantbaserad strategi — riskhantering sker primärt genom systematisk rotation och diversifiering, inte genom diskretionära stoppar."),
+                ],
+            },
+        ],
+    },
+}
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -5101,6 +5244,7 @@ def core_sverige(request: Request, ticker: str = ""):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "policy": MODEL_POLICY["core-sverige"],
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
@@ -5393,6 +5537,7 @@ def edge(request: Request):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "policy": MODEL_POLICY["edge"],
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
@@ -5918,6 +6063,7 @@ def alternativa(request: Request):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "policy": MODEL_POLICY["alternativa"],
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
@@ -6178,6 +6324,7 @@ def core_varlden(request: Request):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
+            "policy": MODEL_POLICY["core-varlden"],
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),

@@ -978,6 +978,85 @@ body {
   color: #1e2a24;
 }
 
+.policy-panel {
+  margin-top: 0;
+  width: 100%;
+  align-self: stretch;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.secondary-toggle {
+  margin-top: 0;
+}
+
+.policy-panel summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e2a24;
+}
+
+.policy-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.policy-panel-body {
+  padding: 0 14px 14px;
+}
+
+.policy-intro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4d5e55;
+}
+
+.policy-section + .policy-section {
+  margin-top: 16px;
+}
+
+.policy-section-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #41644a;
+}
+
+.policy-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.policy-rule-row {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(65, 100, 74, 0.05);
+}
+
+.policy-rule-key {
+  font-size: 12px;
+  font-weight: 600;
+  color: #294333;
+}
+
+.policy-rule-value {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #4d5e55;
+}
+
 .model-add-button {
   border: 1px solid rgba(40, 80, 60, 0.3);
   background: #fff;

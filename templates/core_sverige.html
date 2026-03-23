@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Portfolio Viewer - Core Sverige</title>
-    <link rel="stylesheet" href="/static/style.css?v=2" />
+    <link rel="stylesheet" href="/static/style.css?v=3" />
     <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
@@ -227,94 +227,121 @@
         {% endif %}
       </section>
 
-      <section class="sheet core-sv-secondary">
-        <div class="core-sv-grid">
-          <div class="dash-card">
-            <div class="dash-title">Historik</div>
-            {% if data_rows and data_rows|length > 0 %}
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      {% for col in data_cols %}
-                        <th>{{ col }}</th>
-                      {% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in data_rows %}
-                      <tr>
-                        {% for col in data_cols %}
-                          <td>{{ format_cell(col, row[col]) }}</td>
-                        {% endfor %}
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% else %}
-              <p class="empty" style="margin-top:8px;">Inga data.</p>
-            {% endif %}
-          </div>
-          <div class="dash-card">
-            <div class="dash-title">Actions</div>
-            <form method="post" action="/model-actions-add" class="action-add-form">
-              <input type="hidden" name="model" value="core-sverige" />
-              <input type="date" name="Datum" required />
-              <input type="text" name="Värdepapper" placeholder="Värdepapper" required />
-              <input type="text" name="Transaktionstyp" placeholder="Transaktionstyp" required />
-              <input type="number" step="any" name="Antal" placeholder="Antal" required />
-              <input type="number" step="any" name="Kurs" placeholder="Kurs" required />
-              <button type="submit">Lägg till</button>
-            </form>
-            {% if action_rows and action_rows|length > 0 %}
-              <form method="post" action="/model-actions-save" class="actions-form">
-                <input type="hidden" name="model" value="core-sverige" />
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        {% for col in action_cols %}
-                          <th class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">{{ col }}</th>
-                        {% endfor %}
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for row in action_rows %}
-                        {% set editable_top = loop.index0 < 3 %}
-                        <tr class="actions-row taggar-row">
-                          {% for col in action_cols %}
-                            <td class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">
-                              <span class="cell-readonly">{{ format_cell(col, row[col]) }}</span>
-                              {% if editable_top and col in ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs"] %}
-                                <input
-                                  type="text"
-                                  name="row__{{ row['row_id'] }}__{{ col }}"
-                                  value="{{ row[col] }}"
-                                  class="cell-edit action-cell-edit"
-                                  disabled
-                                />
-                              {% endif %}
-                            </td>
-                          {% endfor %}
-                          <td class="table-actions-cell">
-                            {% if editable_top %}
-                              <button type="button" class="taggar-edit actions-edit" data-row="{{ row['row_id'] }}">✎</button>
-                              <button type="submit" class="taggar-save-row actions-save-row" name="row_id" value="{{ row['row_id'] }}">Spara</button>
-                            {% endif %}
-                          </td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
+      <section class="sheet">
+        <details class="policy-panel">
+          <summary>{{ policy.title }}</summary>
+          <div class="policy-panel-body">
+            <p class="policy-intro">{{ policy.intro }}</p>
+            {% for section in policy.sections %}
+              <div class="policy-section">
+                <div class="policy-section-title">{{ section.title }}</div>
+                <div class="policy-rule-list">
+                  {% for key, value in section["items"] %}
+                    <div class="policy-rule-row">
+                      <span class="policy-rule-key">{{ key }}</span>
+                      <span class="policy-rule-value">{{ value }}</span>
+                    </div>
+                  {% endfor %}
                 </div>
-              </form>
-            {% else %}
-              <p class="empty" style="margin-top:8px;">Inga data.</p>
-            {% endif %}
+              </div>
+            {% endfor %}
           </div>
-        </div>
+        </details>
+      </section>
+
+      <section class="sheet core-sv-secondary">
+        <details class="policy-panel secondary-toggle">
+          <summary>Historik &amp; Actions</summary>
+          <div class="policy-panel-body">
+            <div class="core-sv-grid">
+              <div class="dash-card">
+                <div class="dash-title">Historik</div>
+                {% if data_rows and data_rows|length > 0 %}
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          {% for col in data_cols %}
+                            <th>{{ col }}</th>
+                          {% endfor %}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in data_rows %}
+                          <tr>
+                            {% for col in data_cols %}
+                              <td>{{ format_cell(col, row[col]) }}</td>
+                            {% endfor %}
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="empty" style="margin-top:8px;">Inga data.</p>
+                {% endif %}
+              </div>
+              <div class="dash-card">
+                <div class="dash-title">Actions</div>
+                <form method="post" action="/model-actions-add" class="action-add-form">
+                  <input type="hidden" name="model" value="core-sverige" />
+                  <input type="date" name="Datum" required />
+                  <input type="text" name="Värdepapper" placeholder="Värdepapper" required />
+                  <input type="text" name="Transaktionstyp" placeholder="Transaktionstyp" required />
+                  <input type="number" step="any" name="Antal" placeholder="Antal" required />
+                  <input type="number" step="any" name="Kurs" placeholder="Kurs" required />
+                  <button type="submit">Lägg till</button>
+                </form>
+                {% if action_rows and action_rows|length > 0 %}
+                  <form method="post" action="/model-actions-save" class="actions-form">
+                    <input type="hidden" name="model" value="core-sverige" />
+                    <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            {% for col in action_cols %}
+                              <th class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">{{ col }}</th>
+                            {% endfor %}
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in action_rows %}
+                            {% set editable_top = loop.index0 < 3 %}
+                            <tr class="actions-row taggar-row">
+                              {% for col in action_cols %}
+                                <td class="{% if col in ['Värdepapper'] %}actions-narrow-col{% endif %}{% if col in ['Transaktionstyp', 'Nettokassa'] %} actions-extra-narrow-col{% endif %}">
+                                  <span class="cell-readonly">{{ format_cell(col, row[col]) }}</span>
+                                  {% if editable_top and col in ["Datum", "Värdepapper", "Transaktionstyp", "Antal", "Kurs"] %}
+                                    <input
+                                      type="text"
+                                      name="row__{{ row['row_id'] }}__{{ col }}"
+                                      value="{{ row[col] }}"
+                                      class="cell-edit action-cell-edit"
+                                      disabled
+                                    />
+                                  {% endif %}
+                                </td>
+                              {% endfor %}
+                              <td class="table-actions-cell">
+                                {% if editable_top %}
+                                  <button type="button" class="taggar-edit actions-edit" data-row="{{ row['row_id'] }}">✎</button>
+                                  <button type="submit" class="taggar-save-row actions-save-row" name="row_id" value="{{ row['row_id'] }}">Spara</button>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </form>
+                {% else %}
+                  <p class="empty" style="margin-top:8px;">Inga data.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </details>
       </section>
     </main>
 
@@ -608,3 +635,5 @@
     </script>
   </body>
 </html>
+
+
