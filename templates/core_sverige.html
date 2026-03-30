@@ -227,28 +227,6 @@
         {% endif %}
       </section>
 
-      <section class="sheet">
-        <details class="policy-panel">
-          <summary>{{ policy.title }}</summary>
-          <div class="policy-panel-body">
-            <p class="policy-intro">{{ policy.intro }}</p>
-            {% for section in policy.sections %}
-              <div class="policy-section">
-                <div class="policy-section-title">{{ section.title }}</div>
-                <div class="policy-rule-list">
-                  {% for key, value in section["items"] %}
-                    <div class="policy-rule-row">
-                      <span class="policy-rule-key">{{ key }}</span>
-                      <span class="policy-rule-value">{{ value }}</span>
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </details>
-      </section>
-
       <section class="sheet core-sv-secondary">
         <details class="policy-panel secondary-toggle">
           <summary>Historik &amp; Actions</summary>
