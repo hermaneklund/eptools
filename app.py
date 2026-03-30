@@ -4729,6 +4729,7 @@ def model_dashboard(request: Request):
     model_specs = [
         {
             "title": "Core Sverige",
+            "path": "/core-sverige",
             "actions_tables": ["coresvactions", "CoreSvActions"],
             "data_tables": ["coresvdata", "CoreSvData"],
             "model_col": "CoreSverige",
@@ -4736,6 +4737,7 @@ def model_dashboard(request: Request):
         },
         {
             "title": "Edge",
+            "path": "/edge",
             "actions_tables": ["edgeactions", "EdgeActions"],
             "data_tables": ["edgedata", "EdgeData"],
             "model_col": "Edge",
@@ -4743,6 +4745,7 @@ def model_dashboard(request: Request):
         },
         {
             "title": "Core Världen",
+            "path": "/core-varlden",
             "actions_tables": ["corevactions", "CoreVActions"],
             "data_tables": ["corevdata", "CoreVData"],
             "model_col": "CoreVärlden",
@@ -4750,6 +4753,7 @@ def model_dashboard(request: Request):
         },
         {
             "title": "Alternativa",
+            "path": "/alternativa",
             "actions_tables": ["altactions", "AltActions"],
             "data_tables": ["altdata", "AltData"],
             "model_col": "Alternativa",
@@ -4776,6 +4780,7 @@ def model_dashboard(request: Request):
         model_tables.append(
             {
                 "title": spec["title"],
+                "path": spec["path"],
                 "rows": holdings_rows,
                 "donut_points": donut_points,
             }
@@ -4794,18 +4799,31 @@ def model_dashboard(request: Request):
     # Build holding-level weekly/3M performance from Yahoo ticker mapping in Taggar (API column).
     taggar_df = _load_taggar_table()
     api_by_modelname = {}
+    shortname_by_modelname = {}
     api_col = next((c for c in taggar_df.columns if str(c).strip().lower() == "api"), None)
-    if not taggar_df.empty and "Modellnamn" in taggar_df.columns and api_col:
-        api_df = (
-            taggar_df[["Modellnamn", api_col]]
-            .dropna(subset=["Modellnamn"])
-            .assign(
-                model=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold(),
-                api=lambda d: d[api_col].astype(str).str.strip(),
+    if not taggar_df.empty and "Modellnamn" in taggar_df.columns:
+        if "Short Name" in taggar_df.columns:
+            short_df = (
+                taggar_df[["Modellnamn", "Short Name"]]
+                .dropna(subset=["Modellnamn"])
+                .assign(
+                    model=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold(),
+                    short=lambda d: d["Short Name"].astype(str).str.strip(),
+                )
             )
-        )
-        api_df = api_df[api_df["model"] != ""]
-        api_by_modelname = dict(zip(api_df["model"], api_df["api"]))
+            short_df = short_df[(short_df["model"] != "") & (short_df["short"] != "")]
+            shortname_by_modelname = dict(zip(short_df["model"], short_df["short"]))
+        if api_col:
+            api_df = (
+                taggar_df[["Modellnamn", api_col]]
+                .dropna(subset=["Modellnamn"])
+                .assign(
+                    model=lambda d: d["Modellnamn"].astype(str).str.strip().str.casefold(),
+                    api=lambda d: d[api_col].astype(str).str.strip(),
+                )
+            )
+            api_df = api_df[api_df["model"] != ""]
+            api_by_modelname = dict(zip(api_df["model"], api_df["api"]))
 
     perf_by_holding: dict[str, dict[str, float | None]] = {}
     perf_cache = _load_model_perf_cache()
@@ -4922,6 +4940,7 @@ def model_dashboard(request: Request):
     for mt in model_tables:
         for row in mt.get("rows", []):
             h = str(row.get("Holding", "")).strip()
+            row["DisplayHolding"] = shortname_by_modelname.get(h.casefold(), h)
             if not h or h.upper() == "KASSA":
                 row["WeeklyPerf"] = None
                 row["YTDPerf"] = None

@@ -1786,8 +1786,8 @@ body {
 
 .model-dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .model-donut-grid {
@@ -1816,6 +1816,53 @@ body {
 .dashboard-holdings-table td {
   padding-top: 4px;
   padding-bottom: 4px;
+}
+
+.dashboard-holdings-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.dashboard-holdings-table thead tr:nth-child(2) th {
+  background: #ffffff;
+}
+
+.model-dashboard-grid .table-wrap {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.dashboard-table-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-table-link .table-wrap {
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.dashboard-table-link:hover .table-wrap {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-holdings-table th:first-child,
+.dashboard-holdings-table td:first-child {
+  width: 54%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-holdings-table th:nth-child(2),
+.dashboard-holdings-table td:nth-child(2),
+.dashboard-holdings-table th:nth-child(3),
+.dashboard-holdings-table td:nth-child(3) {
+  width: 23%;
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .dashboard-perf-table .perf-label-col {

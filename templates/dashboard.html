@@ -119,51 +119,37 @@
 
       <section class="sheet">
         <div class="dash-card">
-          <div class="sidebar-meta" style="margin-bottom:8px;">Weekly/3M senast hämtat: {{ perf_last_fetched }}</div>
+          <div class="sidebar-meta" style="margin-bottom:8px;">Senast hämtat {{ perf_last_fetched }}</div>
           <div class="model-dashboard-grid">
             {% for table in model_tables %}
+              <a href="{{ table.path }}" class="dashboard-table-link">
               <div class="table-wrap">
                 <table class="dashboard-holdings-table">
                   <thead>
                     <tr>
-                      <th colspan="5">{{ table.title }}</th>
+                      <th colspan="3">{{ table.title }}</th>
                     </tr>
                     <tr>
                       <th>Innehav</th>
-                      <th>Utv.</th>
-                      <th>1W</th>
-                      <th>3M</th>
                       <th>Vikt</th>
+                      <th>Utv.</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for row in table.rows %}
                       <tr>
-                        <td>{{ row.Holding }}</td>
+                        <td>{{ row.DisplayHolding or row.Holding }}</td>
+                        <td>{{ format_percent_1(row.Vikt) }}</td>
                         {% set utv_cls = "dashboard-num-pos" if row.Utv is not none and row.Utv > 0.10 else ("dashboard-num-neg" if row.Utv is not none and row.Utv < -0.10 else "") %}
                         <td class="{{ utv_cls }}">{{ format_percent_1(row.Utv) }}</td>
-                        {% set weekly_cls = "dashboard-num-pos" if row.WeeklyPerf is not none and row.WeeklyPerf > 0.10 else ("dashboard-num-neg" if row.WeeklyPerf is not none and row.WeeklyPerf < -0.10 else "") %}
-                        <td class="{{ weekly_cls }}">{% if row.WeeklyPerf is not none %}{{ format_percent_1(row.WeeklyPerf) }}{% endif %}</td>
-                        {% set ytd_cls = "dashboard-num-pos" if row.YTDPerf is not none and row.YTDPerf > 0.10 else ("dashboard-num-neg" if row.YTDPerf is not none and row.YTDPerf < -0.10 else "") %}
-                        <td class="{{ ytd_cls }}">{% if row.YTDPerf is not none %}{{ format_percent_1(row.YTDPerf) }}{% endif %}</td>
-                        <td>{{ format_percent_1(row.Vikt) }}</td>
                       </tr>
                     {% endfor %}
                   </tbody>
                 </table>
               </div>
+              </a>
             {% endfor %}
           </div>
-        </div>
-      </section>
-
-      <section class="sheet">
-        <div class="model-donut-grid">
-          {% for table in model_tables %}
-            <div class="donut-panel">
-              <div id="dashboard-donut-{{ loop.index0 }}" style="height:300px; width:100%;"></div>
-            </div>
-          {% endfor %}
         </div>
       </section>
 
@@ -173,8 +159,6 @@
         </form>
       </div>
     </main>
-
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script>
       const sidebar = document.getElementById("sidebar");
       const backdrop = document.getElementById("sidebar-backdrop");
@@ -200,65 +184,6 @@
         toggle.addEventListener("click", () => {
           subnav.classList.toggle("open");
         });
-      });
-
-      const donutModels = {{ model_tables | tojson }};
-      const donutPalette = [
-        "#005F02",
-        "#427A43",
-        "#629FAD",
-        "#C0B87A",
-        "#F2E3BB",
-        "#296374",
-        "#0C2C55",
-        "#EDEDCE",
-        "#5A9CB5",
-        "#41644A",
-        "#9E3B3B",
-        "#D25353",
-        "#EA7B7B",
-        "#FFEAD3"
-      ];
-      const chartColors = ["#005F02", "#0C2C55", "#D25353", "#C0B87A"];
-      donutModels.forEach((model, idx) => {
-        const target = document.getElementById(`dashboard-donut-${idx}`);
-        if (!target) return;
-        const points = Array.isArray(model.donut_points) ? model.donut_points : [];
-        const sorted = [...points].sort((a, b) => {
-          const aCash = String(a.label || "").trim().toUpperCase() === "KASSA";
-          const bCash = String(b.label || "").trim().toUpperCase() === "KASSA";
-          if (aCash && !bCash) return 1;
-          if (!aCash && bCash) return -1;
-          return Number(b.value || 0) - Number(a.value || 0);
-        });
-        const labelsFull = sorted.map(p => String(p.label || ""));
-        const labels = labelsFull.map(v => v.length > 8 ? v.slice(0, 8) : v);
-        const values = sorted.map(p => Number(p.value || 0));
-        const barColors = labelsFull.map((name) =>
-          String(name || "").trim().toUpperCase() === "KASSA"
-            ? "#9ca3af"
-            : chartColors[idx % chartColors.length]
-        );
-        if (!labels.length) {
-          target.innerHTML = '<div style="color:#6b7280;font-size:13px;padding:28px 0;text-align:center;">Inga innehav</div>';
-          return;
-        }
-        Plotly.newPlot(target, [{
-          type: "bar",
-          x: labels,
-          y: values,
-          customdata: labelsFull,
-          marker: { color: barColors },
-          hovertemplate: "%{customdata}<br>%{y:.1%}<extra></extra>"
-        }], {
-          margin: { l: 58, r: 16, t: 20, b: 92 },
-          showlegend: false,
-          title: { text: model.title, x: 0.5, xanchor: "center", y: 0.98, font: { size: 12, color: "#334155" } },
-          xaxis: { tickangle: -35, tickfont: { size: 10 } },
-          yaxis: { tickformat: ".0%", rangemode: "tozero" },
-          paper_bgcolor: "rgba(0,0,0,0)",
-          plot_bgcolor: "rgba(0,0,0,0)"
-        }, { displayModeBar: false, responsive: true });
       });
     </script>
   </body>
