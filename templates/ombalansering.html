@@ -122,6 +122,8 @@
                         <td>
                           {% if col in ["Number", "Nummer"] %}
                             <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
+                          {% elif col == "Kassa" %}
+                            {{ format_cell("Värde i SEK", row[col]) }}
                           {% elif col == "Värde (sek)" %}
                             {{ format_cell("Värde i SEK", row[col]) }}
                           {% elif col == "Modell" %}

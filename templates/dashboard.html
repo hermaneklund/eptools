@@ -119,8 +119,7 @@
 
       <section class="sheet">
         <div class="dash-card">
-          <div class="sidebar-meta" style="margin-bottom:8px;">Senast hämtat {{ perf_last_fetched }}</div>
-          <div class="model-dashboard-grid">
+<div class="model-dashboard-grid">
             {% for table in model_tables %}
               <a href="{{ table.path }}" class="dashboard-table-link">
               <div class="table-wrap">
@@ -140,7 +139,7 @@
                       <tr>
                         <td>{{ row.DisplayHolding or row.Holding }}</td>
                         <td>{{ format_percent_1(row.Vikt) }}</td>
-                        {% set utv_cls = "dashboard-num-pos" if row.Utv is not none and row.Utv > 0.10 else ("dashboard-num-neg" if row.Utv is not none and row.Utv < -0.10 else "") %}
+                        {% set utv_cls = "dashboard-num-pos" if row.Utv is not none and row.Utv > 0.30 else ("dashboard-num-neg" if row.Utv is not none and row.Utv < -0.20 else "") %}
                         <td class="{{ utv_cls }}">{{ format_percent_1(row.Utv) }}</td>
                       </tr>
                     {% endfor %}
