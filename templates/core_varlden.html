@@ -213,33 +213,6 @@
           <div class="policy-panel-body">
             <div class="core-sv-grid">
               <div class="dash-card">
-                <div class="dash-title">Historik</div>
-                {% if data_rows and data_rows|length > 0 %}
-                  <div class="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          {% for col in data_cols %}
-                            <th>{{ col }}</th>
-                          {% endfor %}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for row in data_rows %}
-                          <tr>
-                            {% for col in data_cols %}
-                              <td>{{ format_cell(col, row[col]) }}</td>
-                            {% endfor %}
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% else %}
-                  <p class="empty" style="margin-top:8px;">Inga data.</p>
-                {% endif %}
-              </div>
-              <div class="dash-card">
                 <div class="dash-title">Actions</div>
                 <form method="post" action="/core-varlden/import-transactions" enctype="multipart/form-data" class="action-add-form" style="margin-bottom:8px;">
                   <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" required />
@@ -297,6 +270,33 @@
                       </table>
                     </div>
                   </form>
+                {% else %}
+                  <p class="empty" style="margin-top:8px;">Inga data.</p>
+                {% endif %}
+              </div>
+              <div class="dash-card">
+                <div class="dash-title">Historik</div>
+                {% if data_rows and data_rows|length > 0 %}
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          {% for col in data_cols %}
+                            <th>{{ col }}</th>
+                          {% endfor %}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in data_rows %}
+                          <tr>
+                            {% for col in data_cols %}
+                              <td>{{ format_cell(col, row[col]) }}</td>
+                            {% endfor %}
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
                 {% else %}
                   <p class="empty" style="margin-top:8px;">Inga data.</p>
                 {% endif %}
@@ -366,6 +366,16 @@
             if (first) first.focus();
           });
         }
+
+        const saveBtn = row.querySelector(".actions-save-row");
+        inputs.forEach((input) => {
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (saveBtn) saveBtn.click();
+            }
+          });
+        });
       });
 
       const reweightForms = document.querySelectorAll(".reweight-inline-form");

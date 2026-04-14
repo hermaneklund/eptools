@@ -255,6 +255,15 @@
             if (first) first.focus();
           });
         }
+
+        inputs.forEach((input) => {
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              saveBtn.click();
+            }
+          });
+        });
       });
     </script>
   </body>
