@@ -84,9 +84,7 @@
           <a class="module-btn{% if selected_modul == 'core-varlden' %} active{% endif %}" href="/ombalansering?modul=core-varlden{% if q %}&q={{ q }}{% endif %}">Core Världen</a>
           <a class="module-btn{% if selected_modul == 'edge' %} active{% endif %}" href="/ombalansering?modul=edge{% if q %}&q={{ q }}{% endif %}">Edge</a>
           <a class="module-btn{% if selected_modul == 'alternativa' %} active{% endif %}" href="/ombalansering?modul=alternativa{% if q %}&q={{ q }}{% endif %}">Alternativa</a>
-          {% if selected_modul %}
-            <a class="module-btn export-btn" href="/ombalansering/export?modul={{ selected_modul }}">Exportera Excel</a>
-          {% endif %}
+          <a class="module-btn export-btn" href="/ombalansering/export{% if selected_modul %}?modul={{ selected_modul }}{% endif %}">Exportera Excel</a>
         </div>
           <form class="search" method="get" action="/ombalansering">
             <input
@@ -108,9 +106,7 @@
               <thead>
                 <tr>
                   {% for col in columns %}
-                    {% if col != "Mandat" %}
-                      <th>{{ col }}</th>
-                    {% endif %}
+                    <th>{{ col }}</th>
                   {% endfor %}
                 </tr>
               </thead>
@@ -118,23 +114,23 @@
                 {% for row in rows %}
                   <tr>
                     {% for col in columns %}
-                      {% if col != "Mandat" %}
-                        <td>
-                          {% if col in ["Number", "Nummer"] %}
-                            <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
-                          {% elif col == "Kassa" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
-                          {% elif col == "Värde (sek)" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
-                          {% elif col == "Modell" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
-                          {% elif col == "vs modell" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
-                          {% else %}
-                            {{ format_cell(col, row[col]) }}
-                          {% endif %}
-                        </td>
-                      {% endif %}
+                      <td>
+                        {% if col in ["Number", "Nummer"] %}
+                          <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
+                        {% elif col == "Antal" %}
+                          {{ row[col] if row[col] is not none else "" }}
+                        {% elif col == "Kurs" %}
+                          {{ format_cell("Kurs", row[col]) }}
+                        {% elif col == "Värde (sek)" %}
+                          {{ format_cell("Värde i SEK", row[col]) }}
+                        {% elif col == "Modell" %}
+                          {{ format_cell("Värde i SEK", row[col]) }}
+                        {% elif col == "vs modell" %}
+                          {{ format_cell("Värde i SEK", row[col]) }}
+                        {% else %}
+                          {{ format_cell(col, row[col]) }}
+                        {% endif %}
+                      </td>
                     {% endfor %}
                   </tr>
                 {% endfor %}

@@ -1454,6 +1454,14 @@ body {
   align-items: start;
 }
 
+.ombalansering-wrap .table-wrap {
+  overflow-x: auto;
+}
+
+.ombalansering-wrap table {
+  white-space: nowrap;
+}
+
 
 .strategy-card ul strong {
   font-weight: 600;

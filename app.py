@@ -3719,176 +3719,182 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                 strategi_items.append({"label": str(col).strip(), "value": strategi_row.get(col, "")})
     except Exception:
         strategi_items = []
-    if selected:
-        col, label = selected
-        if not flags_df.empty and "number" in flags_df.columns:
-            number_col = "Number" if "Number" in mandat.columns else "Nummer"
-            flags_merge = flags_df.rename(
-                columns={
-                    "number": number_col,
-                    "dynamisk": "dynamisk",
-                    "coresv": "coresv",
-                    "coreva": "corevä",
-                    "edge": "edge",
-                    "alts": "alts",
-                }
-            )
-            flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
-            mandat[number_col] = mandat[number_col].astype(str).str.strip()
-            mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
-            for flag_col, base_col in [
-                ("dynamisk_flag", "dynamisk"),
-                ("coresv_flag", "coresv"),
-                ("corevä_flag", "corevä"),
-                ("edge_flag", "edge"),
-                ("alts_flag", "alts"),
-            ]:
-                if flag_col in mandat.columns:
-                    if base_col in mandat.columns:
-                        mandat[base_col] = mandat[flag_col].fillna(mandat[base_col])
-                    else:
-                        mandat[base_col] = mandat[flag_col]
-                    mandat.drop(columns=[flag_col], inplace=True)
-        if not dyn_df.empty and "number" in dyn_df.columns:
-            number_col = "Number" if "Number" in mandat.columns else "Nummer"
-            dyn_merge = dyn_df.rename(columns={"number": number_col})
-            dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
-            mandat[number_col] = mandat[number_col].astype(str).str.strip()
-            mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
-            for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
-                dcol_dyn = f"{dcol}_dyn"
-                if dcol_dyn in mandat.columns:
-                    if dcol in mandat.columns:
-                        mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
-                    else:
-                        mandat[dcol] = mandat[dcol_dyn].fillna(0)
-                    mandat.drop(columns=[dcol_dyn], inplace=True)
-        for col_name in ["dynamisk", "dynCS", "dynCV", "dynEd", "dynAlt"]:
-            if col_name not in mandat.columns:
-                mandat[col_name] = 0
+    # Merge flags and dynamic overrides into mandat (shared setup for all modules)
+    if not flags_df.empty and "number" in flags_df.columns:
+        number_col = "Number" if "Number" in mandat.columns else "Nummer"
+        flags_merge = flags_df.rename(
+            columns={
+                "number": number_col,
+                "dynamisk": "dynamisk",
+                "coresv": "coresv",
+                "coreva": "corevä",
+                "edge": "edge",
+                "alts": "alts",
+            }
+        )
+        flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
+        for flag_col, base_col in [
+            ("dynamisk_flag", "dynamisk"),
+            ("coresv_flag", "coresv"),
+            ("corevä_flag", "corevä"),
+            ("edge_flag", "edge"),
+            ("alts_flag", "alts"),
+        ]:
+            if flag_col in mandat.columns:
+                if base_col in mandat.columns:
+                    mandat[base_col] = mandat[flag_col].fillna(mandat[base_col])
+                else:
+                    mandat[base_col] = mandat[flag_col]
+                mandat.drop(columns=[flag_col], inplace=True)
+    if not dyn_df.empty and "number" in dyn_df.columns:
+        number_col = "Number" if "Number" in mandat.columns else "Nummer"
+        dyn_merge = dyn_df.rename(columns={"number": number_col})
+        dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
+        for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
+            dcol_dyn = f"{dcol}_dyn"
+            if dcol_dyn in mandat.columns:
+                if dcol in mandat.columns:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
+                else:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(0)
+                mandat.drop(columns=[dcol_dyn], inplace=True)
+    for col_name in ["dynamisk", "dynCS", "dynCV", "dynEd", "dynAlt"]:
+        if col_name not in mandat.columns:
+            mandat[col_name] = 0
 
-        dyn_col_map = {"CS": "dynCS", "CV": "dynCV", "Ed": "dynEd", "Alt": "dynAlt"}
-        eff_col = dyn_col_map.get(col, col)
-        mandat["__model_value"] = pd.to_numeric(mandat[col], errors="coerce").fillna(0)
+    dyn_col_map = {"CS": "dynCS", "CV": "dynCV", "Ed": "dynEd", "Alt": "dynAlt"}
+
+    # Pre-compute modul classification and totals once (shared across all modules)
+    modul_series = None
+    totals_by_number = {}
+    if "Short Name" in detaljerat.columns:
+        modul_series = detaljerat["Short Name"].apply(
+            lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
+        ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
+        full_counts = pd.to_numeric(detaljerat.get("Available Count", 0), errors="coerce")
+        full_prices = pd.to_numeric(detaljerat.get("Price", 0), errors="coerce")
+        full_base = full_counts * full_prices
+        full_base = full_base.where(modul_series != "fixed income", full_base / 100)
+        if "Currency" in detaljerat.columns:
+            full_rates = detaljerat["Currency"].apply(
+                lambda c: currency_map.get(_normalize_key(c), 1.0)
+            )
+            full_base = full_base * pd.to_numeric(full_rates, errors="coerce").fillna(1.0)
+        total_numbers = detaljerat["Number"].apply(_normalize_number_value)
+        totals_by_number = (
+            pd.DataFrame({"Number": total_numbers, "Value": full_base})
+            .groupby("Number")["Value"]
+            .sum()
+            .to_dict()
+        )
+
+    # Process one module (if selected) or all modules
+    modules_to_process = [selected] if selected else list(modul_map.values())
+    show_modul_col = not bool(selected)
+
+    for mod_col, mod_label in modules_to_process:
+        eff_col = dyn_col_map.get(mod_col, mod_col)
+        mandat["__model_value"] = pd.to_numeric(mandat[mod_col], errors="coerce").fillna(0)
         dyn_vals = pd.to_numeric(mandat[eff_col], errors="coerce").fillna(0)
         mandat["__model_value"] = mandat["__model_value"].where(mandat["dynamisk"] != 1, dyn_vals)
         subset = mandat[mandat["__model_value"].notna() & (mandat["__model_value"] > 0)]
-        # Build row per holding for selected modul
-        if "Short Name" in detaljerat.columns:
-            modul_series = detaljerat["Short Name"].apply(
-                lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
-            ).astype(str).str.strip().str.lower()
-            modul_series = modul_series.replace({"": "övrigt", "nan": "övrigt"})
-            modul_match = modul_series == label.lower()
-            detail_subset = detaljerat[modul_match].copy()
-            name_col = "Instrument Name" if "Instrument Name" in detail_subset.columns else "Short Name"
-            detail_subset["Number"] = detail_subset["Number"].apply(_normalize_number_value)
-            # compute holding value in SEK (selected module rows)
-            counts = pd.to_numeric(detail_subset.get("Available Count", 0), errors="coerce")
-            prices = pd.to_numeric(detail_subset.get("Price", 0), errors="coerce")
-            base_value = counts * prices
-            base_value = base_value.where(modul_series[modul_match] != "fixed income", base_value / 100)
-            if "Currency" in detail_subset.columns:
-                rates = detail_subset["Currency"].apply(
-                    lambda c: currency_map.get(_normalize_key(c), 1.0)
-                )
-                base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
-            detail_subset["Värde (sek)"] = base_value
 
-            mandate_map = (
-                subset.set_index(subset["Number"].apply(_normalize_number_value))[
-                    ["Kund", "Mandat", "__model_value"]
-                ]
-                .to_dict(orient="index")
+        if "Short Name" not in detaljerat.columns or modul_series is None:
+            continue
+
+        modul_match = modul_series == mod_label.lower()
+        detail_subset = detaljerat[modul_match].copy()
+        name_col = "Instrument Name" if "Instrument Name" in detail_subset.columns else "Short Name"
+        detail_subset["Number"] = detail_subset["Number"].apply(_normalize_number_value)
+        counts = pd.to_numeric(detail_subset.get("Available Count", 0), errors="coerce")
+        prices = pd.to_numeric(detail_subset.get("Price", 0), errors="coerce")
+        base_value = counts * prices
+        base_value = base_value.where(modul_series[modul_match] != "fixed income", base_value / 100)
+        if "Currency" in detail_subset.columns:
+            rates = detail_subset["Currency"].apply(
+                lambda c: currency_map.get(_normalize_key(c), 1.0)
             )
-            model_weight_by_holding = _model_weights_for_modul(label, taggar_df)
-            # holdings total per portfolio (all holdings)
-            totals_by_number = {}
-            if "Short Name" in detaljerat.columns:
-                full_counts = pd.to_numeric(detaljerat.get("Available Count", 0), errors="coerce")
-                full_prices = pd.to_numeric(detaljerat.get("Price", 0), errors="coerce")
-                full_base = full_counts * full_prices
-                full_modul = detaljerat["Short Name"].apply(
-                    lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
-                ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
-                full_base = full_base.where(full_modul != "fixed income", full_base / 100)
-                if "Currency" in detaljerat.columns:
-                    full_rates = detaljerat["Currency"].apply(
-                        lambda c: currency_map.get(_normalize_key(c), 1.0)
-                    )
-                    full_base = full_base * pd.to_numeric(full_rates, errors="coerce").fillna(1.0)
-                total_numbers = detaljerat["Number"].apply(_normalize_number_value)
-                totals_by_number = (
-                    pd.DataFrame({"Number": total_numbers, "Value": full_base})
-                    .groupby("Number")["Value"]
-                    .sum()
-                    .to_dict()
-                )
-            # Cash (kassa) per portfolio: Detaljerat rows tagged as "valuta" in Taggar
-            kassa_by_number: dict[str, float] = {}
-            for _, drow in detaljerat.iterrows():
-                short = _normalize_key(str(drow.get("Short Name", "")))
-                tillgang = str(taggar_map.get(short, {}).get("Tillgångsslag", "")).strip().lower()
-                if tillgang != "valuta":
-                    continue
-                num = _normalize_number_value(drow.get("Number", ""))
-                if not num:
-                    continue
-                count = _to_float(drow.get("Available Count", 0)) or 0
-                price = _to_float(drow.get("Price", 1)) or 1
-                currency = str(drow.get("Currency", "SEK")).strip()
-                rate = currency_map.get(_normalize_key(currency), 1.0)
-                kassa_by_number[num] = kassa_by_number.get(num, 0) + count * price * rate
+            base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
+        detail_subset["Värde (sek)"] = base_value
 
-            # build list of holdings for this modul from Taggar (one row per holding per number)
-            holding_display_map = {}
-            holding_norm_list = []
-            if "Short Name" in taggar_df.columns:
-                taggar_modul = (
-                    taggar_df[taggar_df["Modul"].astype(str).str.strip().str.lower() == label.lower()]
-                    if "Modul" in taggar_df.columns
-                    else taggar_df
-                )
-                for short in taggar_modul["Short Name"].dropna().astype(str).str.strip():
-                    norm = _normalize_holding_name(short)
-                    if norm not in holding_display_map:
-                        holding_display_map[norm] = short
-                        holding_norm_list.append(norm)
-            # map (number, holding) -> value
-            value_by_key = {}
-            antal_by_key = {}
-            for _, drow in detail_subset.iterrows():
-                number = _normalize_number_value(drow.get("Number", ""))
-                if "Short Name" in detail_subset.columns:
-                    holding = _normalize_holding_name(drow.get("Short Name", ""))
+        mandate_map = (
+            subset.set_index(subset["Number"].apply(_normalize_number_value))[
+                ["Kund", "Mandat", "__model_value"]
+            ]
+            .to_dict(orient="index")
+        )
+        model_weight_by_holding = _model_weights_for_modul(mod_label, taggar_df)
+
+        holding_display_map = {}
+        holding_norm_list = []
+        kurs_sek_by_holding: dict[str, float | None] = {}
+        if "Short Name" in taggar_df.columns:
+            taggar_modul = (
+                taggar_df[taggar_df["Modul"].astype(str).str.strip().str.lower() == mod_label.lower()]
+                if "Modul" in taggar_df.columns
+                else taggar_df
+            )
+            for short in taggar_modul["Short Name"].dropna().astype(str).str.strip():
+                norm = _normalize_holding_name(short)
+                if norm not in holding_display_map:
+                    holding_display_map[norm] = short
+                    holding_norm_list.append(norm)
+            kurs_col_exists = "Kurs" in taggar_modul.columns
+            fx_col_exists = "FX" in taggar_modul.columns
+            for _, trow in taggar_modul.iterrows():
+                short = str(trow.get("Short Name", "")).strip()
+                norm = _normalize_holding_name(short)
+                kurs = _to_float(trow.get("Kurs")) if kurs_col_exists else None
+                if kurs is not None:
+                    fx = str(trow.get("FX", "")).strip() if fx_col_exists else ""
+                    if fx and fx.upper() not in {"", "SEK"}:
+                        fx_rate = currency_map.get(_normalize_key(fx), 1.0)
+                        kurs = kurs * fx_rate
+                    kurs_sek_by_holding[norm] = kurs
+
+        value_by_key = {}
+        antal_by_key = {}
+        for _, drow in detail_subset.iterrows():
+            number = _normalize_number_value(drow.get("Number", ""))
+            holding = _normalize_holding_name(
+                drow.get("Short Name", "") if "Short Name" in detail_subset.columns else drow.get(name_col, "")
+            )
+            key = (number, holding)
+            value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
+            antal_by_key[key] = (antal_by_key.get(key, 0) or 0) + (_to_float(drow.get("Available Count", 0)) or 0)
+
+        for number, info in mandate_map.items():
+            model_value = _to_float(info.get("__model_value", 0)) or 0
+            holdings_total = totals_by_number.get(number, 0) or 0
+            for holding_norm in holding_norm_list:
+                holding_value = value_by_key.get((number, holding_norm), 0)
+                weight = model_weight_by_holding.get(holding_norm, 0)
+                position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
+                vs_val = holding_value - position_value
+                kurs_val = kurs_sek_by_holding.get(holding_norm)
+                if kurs_val:
+                    antal_raw = abs(vs_val) / kurs_val
+                    antal_rebal = (int(antal_raw) // 2) * 2
                 else:
-                    holding = _normalize_holding_name(drow.get(name_col, ""))
-                key = (number, holding)
-                value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
-                antal_by_key[key] = (antal_by_key.get(key, 0) or 0) + (_to_float(drow.get("Available Count", 0)) or 0)
-
-            for number, info in mandate_map.items():
-                model_value = _to_float(info.get("__model_value", 0)) or 0
-                holdings_total = totals_by_number.get(number, 0) or 0
-                for holding_norm in holding_norm_list:
-                    holding_value = value_by_key.get((number, holding_norm), 0)
-                    holding_antal = antal_by_key.get((number, holding_norm), 0)
-                    weight = model_weight_by_holding.get(holding_norm, 0)
-                    position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
-                    rows.append(
-                        {
-                            "Number": number,
-                            "Kund": info.get("Kund", ""),
-                            "Köp/Sälj": "Köp" if (holding_value - position_value) < 0 else "Sälj",
-                            "Mandat": info.get("Mandat", ""),
-                            "Innehav": holding_display_map.get(holding_norm, holding_norm),
-                            "Antal": holding_antal,
-                            "Kassa": kassa_by_number.get(number),
-                            "Värde (sek)": holding_value,
-                            "Modell": position_value,
-                            "vs modell": holding_value - position_value,
-                        }
-                    )
+                    antal_rebal = None
+                rows.append(
+                    {
+                        "Number": number,
+                        "Kund": info.get("Kund", ""),
+                        "Köp/Sälj": "Köp" if vs_val < 0 else "Sälj",
+                        "Modul": mod_label,
+                        "Innehav": holding_display_map.get(holding_norm, holding_norm),
+                        "Kurs": kurs_val,
+                        "Antal": antal_rebal,
+                        "Värde (sek)": holding_value,
+                        "Modell": position_value,
+                        "vs modell": vs_val,
+                    }
+                )
     rows = [
         r
         for r in rows
@@ -3897,7 +3903,10 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     if q:
         q_norm = q.strip()
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
-    columns = ["Number", "Kund", "Köp/Sälj", "Mandat", "Innehav", "Kassa", "Värde (sek)", "Modell", "vs modell"]
+    if show_modul_col:
+        columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "vs modell", "Modul"]
+    else:
+        columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "vs modell"]
     return templates.TemplateResponse(
 
         request=request,
@@ -3944,170 +3953,140 @@ def ombalansering_export(modul: str = ""):
     }
     selected = modul_map.get(modul_key)
     rows = []
-    if selected:
-        col, label = selected
-        if not flags_df.empty and "number" in flags_df.columns:
-            number_col = "Number" if "Number" in mandat.columns else "Nummer"
-            flags_merge = flags_df.rename(
-                columns={
-                    "number": number_col,
-                    "dynamisk": "dynamisk",
-                    "coresv": "coresv",
-                    "coreva": "corevä",
-                    "edge": "edge",
-                    "alts": "alts",
-                }
-            )
-            flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
-            mandat[number_col] = mandat[number_col].astype(str).str.strip()
-            mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
-            for flag_col, base_col in [
-                ("dynamisk_flag", "dynamisk"),
-                ("coresv_flag", "coresv"),
-                ("corevä_flag", "corevä"),
-                ("edge_flag", "edge"),
-                ("alts_flag", "alts"),
-            ]:
-                if flag_col in mandat.columns:
-                    if base_col in mandat.columns:
-                        mandat[base_col] = mandat[flag_col].fillna(mandat[base_col])
-                    else:
-                        mandat[base_col] = mandat[flag_col]
-                    mandat.drop(columns=[flag_col], inplace=True)
-        if not dyn_df.empty and "number" in dyn_df.columns:
-            number_col = "Number" if "Number" in mandat.columns else "Nummer"
-            dyn_merge = dyn_df.rename(columns={"number": number_col})
-            dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
-            mandat[number_col] = mandat[number_col].astype(str).str.strip()
-            mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
-            for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
-                dcol_dyn = f"{dcol}_dyn"
-                if dcol_dyn in mandat.columns:
-                    if dcol in mandat.columns:
-                        mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
-                    else:
-                        mandat[dcol] = mandat[dcol_dyn].fillna(0)
-                    mandat.drop(columns=[dcol_dyn], inplace=True)
-        for col_name in ["dynamisk", "dynCS", "dynCV", "dynEd", "dynAlt"]:
-            if col_name not in mandat.columns:
-                mandat[col_name] = 0
+    if not flags_df.empty and "number" in flags_df.columns:
+        number_col = "Number" if "Number" in mandat.columns else "Nummer"
+        flags_merge = flags_df.rename(columns={"number": number_col, "dynamisk": "dynamisk", "coresv": "coresv", "coreva": "corevä", "edge": "edge", "alts": "alts"})
+        flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
+        for flag_col, base_col in [("dynamisk_flag", "dynamisk"), ("coresv_flag", "coresv"), ("corevä_flag", "corevä"), ("edge_flag", "edge"), ("alts_flag", "alts")]:
+            if flag_col in mandat.columns:
+                mandat[base_col] = mandat[flag_col].fillna(mandat[base_col]) if base_col in mandat.columns else mandat[flag_col]
+                mandat.drop(columns=[flag_col], inplace=True)
+    if not dyn_df.empty and "number" in dyn_df.columns:
+        number_col = "Number" if "Number" in mandat.columns else "Nummer"
+        dyn_merge = dyn_df.rename(columns={"number": number_col})
+        dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
+        for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
+            dcol_dyn = f"{dcol}_dyn"
+            if dcol_dyn in mandat.columns:
+                mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol]) if dcol in mandat.columns else mandat[dcol_dyn].fillna(0)
+                mandat.drop(columns=[dcol_dyn], inplace=True)
+    for col_name in ["dynamisk", "dynCS", "dynCV", "dynEd", "dynAlt"]:
+        if col_name not in mandat.columns:
+            mandat[col_name] = 0
 
-        dyn_col_map = {"CS": "dynCS", "CV": "dynCV", "Ed": "dynEd", "Alt": "dynAlt"}
-        eff_col = dyn_col_map.get(col, col)
-        mandat["__model_value"] = pd.to_numeric(mandat[col], errors="coerce").fillna(0)
+    dyn_col_map = {"CS": "dynCS", "CV": "dynCV", "Ed": "dynEd", "Alt": "dynAlt"}
+    modul_series = None
+    totals_by_number = {}
+    if "Short Name" in detaljerat.columns:
+        modul_series = detaljerat["Short Name"].apply(
+            lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
+        ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
+        full_counts = pd.to_numeric(detaljerat.get("Available Count", 0), errors="coerce")
+        full_prices = pd.to_numeric(detaljerat.get("Price", 0), errors="coerce")
+        full_base = full_counts * full_prices
+        full_base = full_base.where(modul_series != "fixed income", full_base / 100)
+        if "Currency" in detaljerat.columns:
+            full_rates = detaljerat["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+            full_base = full_base * pd.to_numeric(full_rates, errors="coerce").fillna(1.0)
+        total_numbers = detaljerat["Number"].apply(_normalize_number_value)
+        totals_by_number = pd.DataFrame({"Number": total_numbers, "Value": full_base}).groupby("Number")["Value"].sum().to_dict()
+
+    modules_to_process = [selected] if selected else list(modul_map.values())
+    show_modul_col = not bool(selected)
+
+    for mod_col, mod_label in modules_to_process:
+        eff_col = dyn_col_map.get(mod_col, mod_col)
+        mandat["__model_value"] = pd.to_numeric(mandat[mod_col], errors="coerce").fillna(0)
         dyn_vals = pd.to_numeric(mandat[eff_col], errors="coerce").fillna(0)
         mandat["__model_value"] = mandat["__model_value"].where(mandat["dynamisk"] != 1, dyn_vals)
         subset = mandat[mandat["__model_value"].notna() & (mandat["__model_value"] > 0)]
-        if "Short Name" in detaljerat.columns:
-            modul_series = detaljerat["Short Name"].apply(
-                lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
-            ).astype(str).str.strip().str.lower()
-            modul_series = modul_series.replace({"": "övrigt", "nan": "övrigt"})
-            modul_match = modul_series == label.lower()
-            detail_subset = detaljerat[modul_match].copy()
-            name_col = "Instrument Name" if "Instrument Name" in detail_subset.columns else "Short Name"
-            detail_subset["Number"] = detail_subset["Number"].apply(_normalize_number_value)
-            counts = pd.to_numeric(detail_subset.get("Available Count", 0), errors="coerce")
-            prices = pd.to_numeric(detail_subset.get("Price", 0), errors="coerce")
-            base_value = counts * prices
-            base_value = base_value.where(modul_series[modul_match] != "fixed income", base_value / 100)
-            if "Currency" in detail_subset.columns:
-                rates = detail_subset["Currency"].apply(
-                    lambda c: currency_map.get(_normalize_key(c), 1.0)
-                )
-                base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
-            detail_subset["Värde (sek)"] = base_value
-
-            mandate_map = (
-                subset.set_index(subset["Number"].apply(_normalize_number_value))[
-                    ["Kund", "Mandat", "__model_value"]
-                ]
-                .to_dict(orient="index")
+        if "Short Name" not in detaljerat.columns or modul_series is None:
+            continue
+        modul_match = modul_series == mod_label.lower()
+        detail_subset = detaljerat[modul_match].copy()
+        name_col = "Instrument Name" if "Instrument Name" in detail_subset.columns else "Short Name"
+        detail_subset["Number"] = detail_subset["Number"].apply(_normalize_number_value)
+        counts = pd.to_numeric(detail_subset.get("Available Count", 0), errors="coerce")
+        prices = pd.to_numeric(detail_subset.get("Price", 0), errors="coerce")
+        base_value = counts * prices
+        base_value = base_value.where(modul_series[modul_match] != "fixed income", base_value / 100)
+        if "Currency" in detail_subset.columns:
+            rates = detail_subset["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+            base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
+        detail_subset["Värde (sek)"] = base_value
+        mandate_map = (
+            subset.set_index(subset["Number"].apply(_normalize_number_value))[["Kund", "Mandat", "__model_value"]]
+            .to_dict(orient="index")
+        )
+        model_weight_by_holding = _model_weights_for_modul(mod_label, taggar_df)
+        holding_display_map = {}
+        holding_norm_list = []
+        kurs_sek_by_holding: dict[str, float | None] = {}
+        if "Short Name" in taggar_df.columns:
+            taggar_modul = (
+                taggar_df[taggar_df["Modul"].astype(str).str.strip().str.lower() == mod_label.lower()]
+                if "Modul" in taggar_df.columns else taggar_df
             )
-            model_weight_by_holding = _model_weights_for_modul(label, taggar_df)
-            totals_by_number = {}
-            if "Short Name" in detaljerat.columns:
-                full_counts = pd.to_numeric(detaljerat.get("Available Count", 0), errors="coerce")
-                full_prices = pd.to_numeric(detaljerat.get("Price", 0), errors="coerce")
-                full_base = full_counts * full_prices
-                full_modul = detaljerat["Short Name"].apply(
-                    lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
-                ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
-                full_base = full_base.where(full_modul != "fixed income", full_base / 100)
-                if "Currency" in detaljerat.columns:
-                    full_rates = detaljerat["Currency"].apply(
-                        lambda c: currency_map.get(_normalize_key(c), 1.0)
-                    )
-                    full_base = full_base * pd.to_numeric(full_rates, errors="coerce").fillna(1.0)
-                total_numbers = detaljerat["Number"].apply(_normalize_number_value)
-                totals_by_number = (
-                    pd.DataFrame({"Number": total_numbers, "Value": full_base})
-                    .groupby("Number")["Value"]
-                    .sum()
-                    .to_dict()
-                )
-            holding_display_map = {}
-            holding_norm_list = []
-            if "Short Name" in taggar_df.columns:
-                taggar_modul = (
-                    taggar_df[taggar_df["Modul"].astype(str).str.strip().str.lower() == label.lower()]
-                    if "Modul" in taggar_df.columns
-                    else taggar_df
-                )
-                for short in taggar_modul["Short Name"].dropna().astype(str).str.strip():
-                    norm = _normalize_holding_name(short)
-                    if norm not in holding_display_map:
-                        holding_display_map[norm] = short
-                        holding_norm_list.append(norm)
-            value_by_key = {}
-            antal_by_key = {}
-            for _, drow in detail_subset.iterrows():
-                number = _normalize_number_value(drow.get("Number", ""))
-                if "Short Name" in detail_subset.columns:
-                    holding = _normalize_holding_name(drow.get("Short Name", ""))
-                else:
-                    holding = _normalize_holding_name(drow.get(name_col, ""))
-                key = (number, holding)
-                value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
-                antal_by_key[key] = (antal_by_key.get(key, 0) or 0) + (_to_float(drow.get("Available Count", 0)) or 0)
+            for short in taggar_modul["Short Name"].dropna().astype(str).str.strip():
+                norm = _normalize_holding_name(short)
+                if norm not in holding_display_map:
+                    holding_display_map[norm] = short
+                    holding_norm_list.append(norm)
+            kurs_col_exists = "Kurs" in taggar_modul.columns
+            fx_col_exists = "FX" in taggar_modul.columns
+            for _, trow in taggar_modul.iterrows():
+                short = str(trow.get("Short Name", "")).strip()
+                norm = _normalize_holding_name(short)
+                kurs = _to_float(trow.get("Kurs")) if kurs_col_exists else None
+                if kurs is not None:
+                    fx = str(trow.get("FX", "")).strip() if fx_col_exists else ""
+                    if fx and fx.upper() not in {"", "SEK"}:
+                        kurs = kurs * currency_map.get(_normalize_key(fx), 1.0)
+                    kurs_sek_by_holding[norm] = kurs
+        value_by_key = {}
+        for _, drow in detail_subset.iterrows():
+            number = _normalize_number_value(drow.get("Number", ""))
+            holding = _normalize_holding_name(drow.get("Short Name", "") if "Short Name" in detail_subset.columns else drow.get(name_col, ""))
+            key = (number, holding)
+            value_by_key[key] = (value_by_key.get(key, 0) or 0) + (drow.get("Värde (sek)", 0) or 0)
+        for number, info in mandate_map.items():
+            model_value = _to_float(info.get("__model_value", 0)) or 0
+            holdings_total = totals_by_number.get(number, 0) or 0
+            for holding_norm in holding_norm_list:
+                holding_value = value_by_key.get((number, holding_norm), 0)
+                weight = model_weight_by_holding.get(holding_norm, 0)
+                position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
+                vs_val = holding_value - position_value
+                kurs_val = kurs_sek_by_holding.get(holding_norm)
+                antal_rebal = (int(abs(vs_val) / kurs_val) // 2) * 2 if kurs_val else None
+                rows.append({
+                    "Number": number,
+                    "Kund": info.get("Kund", ""),
+                    "Köp/Sälj": "Köp" if vs_val < 0 else "Sälj",
+                    "Modul": mod_label,
+                    "Innehav": holding_display_map.get(holding_norm, holding_norm),
+                    "Antal": antal_rebal,
+                    "Kurs": kurs_val,
+                    "Värde (sek)": holding_value,
+                    "Modell": position_value,
+                    "vs modell": vs_val,
+                })
 
-            for number, info in mandate_map.items():
-                model_value = _to_float(info.get("__model_value", 0)) or 0
-                holdings_total = totals_by_number.get(number, 0) or 0
-                for holding_norm in holding_norm_list:
-                    holding_value = value_by_key.get((number, holding_norm), 0)
-                    holding_antal = antal_by_key.get((number, holding_norm), 0)
-                    weight = model_weight_by_holding.get(holding_norm, 0)
-                    position_value = (
-                        holdings_total * model_value * weight
-                        if holdings_total and model_value > 0
-                        else 0
-                    )
-                    rows.append(
-                        {
-                            "Number": number,
-                            "Kund": info.get("Kund", ""),
-                            "Köp/Sälj": "Köp" if (holding_value - position_value) < 0 else "Sälj",
-                            "Mandat": info.get("Mandat", ""),
-                            "Innehav": holding_display_map.get(holding_norm, holding_norm),
-                            "Antal": holding_antal,
-                            "Värde (sek)": holding_value,
-                            "Modell": position_value,
-                            "vs modell": holding_value - position_value,
-                        }
-                    )
-
-    rows = [
-        r
-        for r in rows
-        if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000
-    ]
-    columns = ["Number", "Kund", "Köp/Sälj", "Mandat", "Innehav", "Värde (sek)", "Modell", "vs modell"]
+    rows = [r for r in rows if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000]
+    if show_modul_col:
+        columns = ["Number", "Kund", "Köp/Sälj", "Modul", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell"]
+    else:
+        columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell"]
+    filename = "ombalansering.xlsx" if selected else "ombalansering_alla.xlsx"
     df = pd.DataFrame(rows, columns=columns)
     output = BytesIO()
     df.to_excel(output, index=False, sheet_name="Ombalansering")
     output.seek(0)
-    headers = {"Content-Disposition": "attachment; filename=ombalansering.xlsx"}
+    headers = {"Content-Disposition": f"attachment; filename={filename}"}
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
