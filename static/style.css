@@ -1733,6 +1733,34 @@ body {
   overflow-x: auto;
 }
 
+.table-wrap.mandat-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mandat-sticky-cell {
+  position: sticky;
+  background: #fff;
+  z-index: 2;
+}
+
+.mandat-sticky-cell.is-th {
+  z-index: 3;
+  background: #f8fafc;
+}
+
+.mandat-sticky-cell.sticky-last {
+  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.1);
+}
+
+.mandat-truncate {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
 .table-actions {
   display: flex;
   justify-content: flex-end;

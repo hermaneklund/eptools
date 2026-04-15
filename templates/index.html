@@ -144,7 +144,7 @@
             <div class="header-left">
               <h2>{{ dashboard.Kund }}</h2>
               <div class="notes header-notes">
-                <p>{{ dashboard.Number }} | {{ dashboard.Mandat }}</p>
+                <p>{{ dashboard.Number }} | <a href="/mandat?q={{ dashboard.Number }}" class="number-link">{{ dashboard.Mandat }}</a></p>
               </div>
             </div>
             <div class="header-right">
@@ -197,7 +197,12 @@
           </div>
           <div class="allocation-table">
             <div class="allocation-row allocation-header">
-              <div>Moduler</div>
+              <div>
+                <a class="alloc-link" href="/ombalansering?{% if dashboard and dashboard.Number %}q={{ dashboard.Number }}{% elif q %}q={{ q }}{% endif %}" title="Visa ombalansering" aria-label="Visa ombalansering">
+                  <img src="/static/balance.png" alt="" aria-hidden="true" />
+                </a>
+                Moduler
+              </div>
               <div>% i portfölj</div>
               <div>% i modell</div>
               <div># i portfölj</div>
@@ -206,12 +211,7 @@
             </div>
             {% set missing = missing_by_modul.get("alternativa") %}
             <div class="allocation-row row-alt"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
-              <div>
-                <a class="alloc-link" href="/ombalansering?modul=alternativa{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Alternativa" aria-label="Visa ombalansering för Alternativa">
-                  <img src="/static/balance.png" alt="" aria-hidden="true" />
-                </a>
-                Alternativa
-              </div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Alternativa</div>
               <div>{{ format_cell("Alt", alternativa_share) }}</div>
               <div>{{ format_cell("Alt", allocation.Alt) }}</div>
               <div>{{ format_cell("count", portfolio_modul_counts.get("alternativa", 0)) }}</div>
@@ -220,12 +220,7 @@
             </div>
             {% set missing = missing_by_modul.get("core sverige") %}
             <div class="allocation-row row-cs"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
-              <div>
-                <a class="alloc-link" href="/ombalansering?modul=core-sverige{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Core Sverige" aria-label="Visa ombalansering för Core Sverige">
-                  <img src="/static/balance.png" alt="" aria-hidden="true" />
-                </a>
-                Core Sverige
-              </div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Core Sverige</div>
               <div>{{ format_cell("CS", core_sverige_share) }}</div>
               <div>{{ format_cell("CS", allocation.CS) }}</div>
               <div>{{ format_cell("count", portfolio_modul_counts.get("core sverige", 0)) }}</div>
@@ -234,12 +229,7 @@
             </div>
             {% set missing = missing_by_modul.get("core världen") %}
             <div class="allocation-row row-cv"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
-              <div>
-                <a class="alloc-link" href="/ombalansering?modul=core-varlden{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Core Världen" aria-label="Visa ombalansering för Core Världen">
-                  <img src="/static/balance.png" alt="" aria-hidden="true" />
-                </a>
-                Core Världen
-              </div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Core Världen</div>
               <div>{{ format_cell("CV", core_varlden_share) }}</div>
               <div>{{ format_cell("CV", allocation.CV) }}</div>
               <div>{{ format_cell("count", portfolio_modul_counts.get("core världen", 0)) }}</div>
@@ -248,12 +238,7 @@
             </div>
             {% set missing = missing_by_modul.get("edge") %}
             <div class="allocation-row row-ed"{% if missing %} title="Saknas: {{ missing | join(', ') }}"{% endif %}>
-              <div>
-                <a class="alloc-link" href="/ombalansering?modul=edge{% if dashboard and dashboard.Number %}&q={{ dashboard.Number }}{% elif q %}&q={{ q }}{% endif %}" title="Visa ombalansering för Edge" aria-label="Visa ombalansering för Edge">
-                  <img src="/static/balance.png" alt="" aria-hidden="true" />
-                </a>
-                Edge
-              </div>
+              <div><span class="alloc-link-spacer" aria-hidden="true"></span>Edge</div>
               <div>{{ format_cell("Ed", edge_share) }}</div>
               <div>{{ format_cell("Ed", allocation.Ed) }}</div>
               <div>{{ format_cell("count", portfolio_modul_counts.get("edge", 0)) }}</div>

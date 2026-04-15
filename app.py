@@ -3636,7 +3636,7 @@ def uppbyggnader(request: Request):
         }
 
         is_underbuilt = any(
-            targets[k] > 0 and shares[k] < (0.5 * targets[k])
+            targets[k] > 0 and shares[k] < (0.7 * targets[k])
             for k in ["Alt", "CS", "CV", "Ed"]
         )
         if not is_underbuilt:
@@ -3665,7 +3665,7 @@ def uppbyggnader(request: Request):
             }
         )
 
-    rows = sorted(rows, key=lambda r: (_to_float(r.get("Värde", 0)) or 0), reverse=True)
+    rows = sorted(rows, key=lambda r: (_to_float(r.get("Kassa", 0)) or 0) / (_to_float(r.get("Värde", 1)) or 1), reverse=True)
     columns = ["Number", "Kund", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
     return templates.TemplateResponse(
 
@@ -3903,6 +3903,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     if q:
         q_norm = q.strip()
         rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
+    rows.sort(key=lambda r: int(r["Number"]) if str(r.get("Number", "")).isdigit() else float("inf"))
     if show_modul_col:
         columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "vs modell", "Modul"]
     else:

@@ -438,6 +438,56 @@
         tableWrap.scrollTop = Number(restoreTop);
       }
 
+      // Sticky first columns + long-text truncation
+      (function () {
+        const wrap = document.getElementById("mandat-table-wrap");
+        if (!wrap) return;
+        const tbl = wrap.querySelector("table");
+        if (!tbl) return;
+
+        const STICKY_COUNT = 3; // action cell + Number + Kund
+        const LONG_TEXT_COLS = new Set(["Mandatnotering", "Förvaltningsnotering", "FI-notering"]);
+
+        const headerRow = tbl.querySelector("thead tr");
+        const longColIndices = new Set();
+        if (headerRow) {
+          headerRow.querySelectorAll("th").forEach((th, i) => {
+            if (LONG_TEXT_COLS.has(th.textContent.trim())) longColIndices.add(i);
+          });
+        }
+
+        tbl.querySelectorAll("tr").forEach(row => {
+          const cells = row.querySelectorAll("th, td");
+          cells.forEach((cell, i) => {
+            if (i < STICKY_COUNT) {
+              cell.classList.add("mandat-sticky-cell");
+              if (cell.tagName === "TH") cell.classList.add("is-th");
+              if (i === STICKY_COUNT - 1) cell.classList.add("sticky-last");
+            }
+            if (longColIndices.has(i)) {
+              cell.classList.add("mandat-truncate");
+              const text = cell.textContent.trim();
+              if (text) cell.title = text;
+            }
+          });
+        });
+
+        if (!headerRow) return;
+        const headerCells = headerRow.querySelectorAll("th");
+        let offset = 0;
+        const offsets = [];
+        for (let i = 0; i < STICKY_COUNT; i++) {
+          offsets.push(offset);
+          offset += headerCells[i] ? headerCells[i].offsetWidth : 0;
+        }
+
+        tbl.querySelectorAll("tr").forEach(row => {
+          row.querySelectorAll(".mandat-sticky-cell").forEach((cell, i) => {
+            if (i < offsets.length) cell.style.left = offsets[i] + "px";
+          });
+        });
+      })();
+
     </script>
   </body>
 </html>
