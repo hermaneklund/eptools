@@ -1237,7 +1237,7 @@ def _model_total_from_actions(table: str) -> float:
         .reset_index()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"].abs() > 1e-8]
+    holdings = holdings[holdings["Antal"].abs() > 0.001]
 
     total_value = 0.0
     for _, row in holdings.iterrows():
@@ -1618,7 +1618,7 @@ def _model_weights_for_modul(modul_label: str, taggar_df: pd.DataFrame) -> dict[
         .reset_index()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"].abs() > 1e-8]
+    holdings = holdings[holdings["Antal"].abs() > 0.001]
 
     # taggar maps
     kurs_by_model = {}
@@ -1923,7 +1923,7 @@ def _build_model_holdings_rows(actions_df: pd.DataFrame) -> list[dict]:
         .to_dict()
     )
     holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-    holdings = holdings[holdings["Antal"].abs() > 1e-8]
+    holdings = holdings[holdings["Antal"].abs() > 0.001]
     holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
     holdings_rows = holdings.to_dict(orient="records")
 
@@ -4842,7 +4842,7 @@ def core_sverige(request: Request, ticker: str = ""):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"].abs() > 1e-8]
+        holdings = holdings[holdings["Antal"].abs() > 0.001]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -5151,7 +5151,7 @@ def edge(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"].abs() > 1e-8]
+        holdings = holdings[holdings["Antal"].abs() > 0.001]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -5693,7 +5693,7 @@ def alternativa(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"].abs() > 1e-8]
+        holdings = holdings[holdings["Antal"].abs() > 0.001]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
@@ -5964,7 +5964,7 @@ def core_varlden(request: Request):
             .to_dict()
         )
         holdings = holdings[holdings["Värdepapper_norm"].astype(str).str.strip() != ""]
-        holdings = holdings[holdings["Antal"].abs() > 1e-8]
+        holdings = holdings[holdings["Antal"].abs() > 0.001]
         holdings["Värdepapper"] = holdings["Värdepapper_norm"].map(name_map).fillna(holdings["Värdepapper_norm"])
         holdings_rows = holdings.to_dict(orient="records")
         if nettokassa is not None:
