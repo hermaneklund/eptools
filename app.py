@@ -1480,7 +1480,8 @@ async def strategi_update(request: Request):
                 + strategi_vals.get("alts", 0) * alts_series
             )
             fi_value = pd.to_numeric(mandat_df["FI"], errors="coerce").fillna(0) if "FI" in mandat_df.columns else 0
-            scale = 1 - fi_value
+            ovr_value = pd.to_numeric(mandat_df["Övr"], errors="coerce").fillna(0) if "Övr" in mandat_df.columns else 0
+            scale = 1 - fi_value - ovr_value
             denom = flags_sum.replace(0, np.nan)
 
             mandat_df["dynCS"] = (
@@ -3645,10 +3646,10 @@ def uppbyggnader(request: Request):
             continue
 
         under_flags = {
-            "Alt_under": targets["Alt"] > 0 and shares["Alt"] < (0.5 * targets["Alt"]),
-            "CS_under": targets["CS"] > 0 and shares["CS"] < (0.5 * targets["CS"]),
-            "CV_under": targets["CV"] > 0 and shares["CV"] < (0.5 * targets["CV"]),
-            "Ed_under": targets["Ed"] > 0 and shares["Ed"] < (0.5 * targets["Ed"]),
+            "Alt_under": targets["Alt"] > 0 and shares["Alt"] < (0.7 * targets["Alt"]),
+            "CS_under": targets["CS"] > 0 and shares["CS"] < (0.7 * targets["CS"]),
+            "CV_under": targets["CV"] > 0 and shares["CV"] < (0.7 * targets["CV"]),
+            "Ed_under": targets["Ed"] > 0 and shares["Ed"] < (0.7 * targets["Ed"]),
         }
 
         rows.append(
@@ -4416,7 +4417,12 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
             if "FI" in df.columns
             else 0
         )
-        scale = 1 - fi_value
+        ovr_value = (
+            pd.to_numeric(df["Övr"], errors="coerce").fillna(0)
+            if "Övr" in df.columns
+            else 0
+        )
+        scale = 1 - fi_value - ovr_value
         dyn_off = df["dynamisk"] != 1
         for col in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
             df.loc[dyn_off, col] = 0.0
@@ -5465,6 +5471,13 @@ async def model_actions_save(request: Request):
         key = f"row__{row_id}__{col}"
         if key in form:
             df.loc[mask, col] = _coerce_cell_for_column(df, col, form.get(key))
+    # If all editable fields are blank, delete the row instead
+    updated_row = df[mask].iloc[0] if mask.any() else None
+    if updated_row is not None and all(
+        str(updated_row.get(col, "")).strip() in {"", "nan", "None"}
+        for col in editable
+    ):
+        df = df[~mask]
     df = _recalc_kassa_from_row_id(df, row_id)
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql(table, conn, if_exists="replace", index=False)
