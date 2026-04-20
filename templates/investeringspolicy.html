@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>E&P â Investeringspolicy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg-page: #F7F8FA;
+    --bg-page-2: #EDEEF2;
+    --ink: #1A1A1A;
+    --ink-2: #333333;
+    --ink-3: #4A4A4A;
+    --muted: #787878;
+    --muted-2: #BBBBBB;
+    --line: #E8E8E8;
+    --line-soft: #F0F0F0;
+
+    --ep-green: #307850;
+    --ep-green-dark: #1A4D2A;
+    --ep-green-soft: #E8F0E8;
+
+    --mandatory: #2B2B2B;
+    --recommend: #9A9A9A;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--bg-page) 0%, var(--bg-page-2) 100%);
+    font-family: 'DM Sans', sans-serif;
+    padding: 40px 20px 80px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+
+  .container { max-width: 840px; margin: 0 auto; }
+
+  /* ============ HEADER ============ */
+  .header {
+    margin-bottom: 44px;
+    text-align: center;
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+  .header-brand {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ep-green);
+    margin-bottom: 14px;
+  }
+  .header h1 {
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+  }
+  .header .version {
+    display: inline-block;
+    margin-top: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    padding: 4px 12px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: #FFFFFF;
+  }
+
+  /* ============ SECTIONS ============ */
+  .section {
+    margin-bottom: 28px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 4px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--ep-green);
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    flex: 1;
+  }
+  .section-chevron {
+    width: 22px;
+    height: 22px;
+    color: var(--muted);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+  }
+  .section.open .section-chevron {
+    transform: rotate(180deg);
+  }
+
+  .section-body {
+    display: none;
+    padding-top: 22px;
+  }
+  .section.open .section-body {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .prose {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-3);
+  }
+  .prose p + p { margin-top: 14px; }
+  .prose strong { color: var(--ink-2); font-weight: 600; }
+
+  /* Stacked layout (panels full-width) */
+  .stacked {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .panel {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ep-green);
+    margin-bottom: 10px;
+  }
+  .panel h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 12px;
+    letter-spacing: -0.015em;
+  }
+
+  /* Rule list with icons (used throughout) */
+  .rule-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .rule-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-3);
+  }
+  .rule-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .rule-icon.mandatory { color: var(--mandatory); }
+  .rule-icon.recommend { color: var(--recommend); }
+  .rule-list li.rec {
+    color: var(--muted);
+  }
+
+  /* "Rek:" text label for recommendations (replaces lightbulb icon) */
+  .rek-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--recommend);
+    text-transform: uppercase;
+    font-style: normal;
+    flex-shrink: 0;
+    margin-top: 2px;
+    min-width: 34px;
+  }
+
+  /* Inline recommendation parenthetical (e.g. "(Rek max 5%)") */
+  .inline-rek {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--recommend);
+    margin-left: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Factor blocks (Strukturell tillväxt / Kvalitet / Risk) */
+  .factors {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .factor {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 18px;
+    padding: 12px 0;
+  }
+  .factor + .factor {
+    border-top: 1px solid var(--line-soft);
+  }
+  .factor-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ep-green-dark);
+    letter-spacing: -0.01em;
+    padding-top: 1px;
+  }
+  .factor-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 680px) {
+    .factor { grid-template-columns: 1fr; gap: 4px; }
+  }
+
+  /* Pillar chips (Portföljfilosofi, Aktiefilosofi grundpelare) */
+  .pillars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .pillar {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 5px 11px;
+    background: var(--ep-green-soft);
+    color: var(--ep-green-dark);
+    border-radius: 20px;
+  }
+
+  /* Cross-reference link style */
+  .xref {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--ep-green);
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--ep-green);
+    padding-bottom: 1px;
+  }
+  .xref:hover { color: var(--ep-green-dark); border-bottom-style: solid; }
+
+  /* ============ FÖRVALTNINGSMANDAT ============ */
+  .mandate-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mandate-row {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    align-items: center;
+    gap: 24px;
+    padding: 20px 24px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    transition: border-color 0.2s ease;
+  }
+  .mandate-row:hover { border-color: #D8DCE2; }
+
+  .mandate-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .mandate-name .sub {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 6px;
+  }
+
+  /* Per-asset cap bars (stacked mini-bars showing max% for each asset class) */
+  .cap-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cap-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 42px;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .cap-asset {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .cap-track {
+    height: 8px;
+    background: #F0F1F4;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .cap-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .cap-fill.aktier { background: #D4A544; }
+  .cap-fill.alt    { background: #C47A4A; }
+  .cap-fill.ranta  { background: #5B8C6C; }
+  .cap-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    font-weight: 600;
+    text-align: right;
+  }
+  .cap-value.zero { color: var(--muted-2); }
+
+  /* Risk group caps as small pills */
+  .risk-caps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 130px;
+  }
+  .risk-cap {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    background: #F4F5F7;
+    padding: 4px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .risk-cap.none {
+    color: var(--muted-2);
+    background: transparent;
+    border: 1px dashed var(--line);
+    text-align: center;
+  }
+
+  /* Caption below the mandate grid */
+  .mandate-caption {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-soft);
+    letter-spacing: 0.01em;
+  }
+  .mandate-caption strong {
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+
+  /* ============ RISKPYRAMID ============ */
+  .risk-layout {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .pyramid {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .pyramid-row {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: stretch;
+    gap: 2px;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: transform 0.18s ease;
+  }
+  .pyramid-row:hover { transform: translateX(2px); }
+
+  .rg-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.02em;
+  }
+  .rg-content {
+    padding: 10px 14px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #FFFFFF;
+    font-weight: 500;
+  }
+
+  /* RG color system */
+  .rg-8 { background: #7A1818; }
+  .rg-8 .rg-number { background: #5A0F0F; }
+  .rg-7 { background: #C04040; }
+  .rg-7 .rg-number { background: #8C2A2A; }
+  .rg-6 { background: #D87040; }
+  .rg-6 .rg-number { background: #A3502A; }
+  .rg-5 { background: #E6A850; }
+  .rg-5 .rg-number { background: #B58135; }
+  .rg-4 { background: #A8BA55; }
+  .rg-4 .rg-number { background: #7E8E3E; }
+  .rg-3 { background: #6FA865; }
+  .rg-3 .rg-number { background: #507E47; }
+  .rg-2 { background: #4F8A5E; }
+  .rg-2 .rg-number { background: #37633F; }
+  .rg-1 { background: #2A6A45; }
+  .rg-1 .rg-number { background: #1C4A30; }
+
+  /* Module mapper on the right */
+  .module-mapper {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .module-mapper h4 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ep-green);
+    margin-bottom: 14px;
+  }
+  .module-map-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .module-map-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .module-map-item .name { font-weight: 600; }
+  .module-map-item .rg-range {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--ink-3);
+    background: #F4F5F7;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  /* Color swatch legend key below pyramid */
+  .rg-key {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-soft);
+    flex-wrap: wrap;
+  }
+  .rg-key-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .rg-key-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+  }
+
+  /* ============ MODULER ============ */
+  .module-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .m-card {
+    border-radius: 14px;
+    padding: 16px 22px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .m-card.active {
+    background: #FFFFFF !important;
+    padding: 24px 28px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .m-card .m-accent {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .m-card.active .m-accent { display: block; }
+
+  .m-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .m-card.active .m-header { margin-bottom: 20px; }
+  .m-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    transition: all 0.3s ease;
+  }
+  .m-card.active .m-title { font-size: 20px; }
+  .m-focus {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 3px;
+    letter-spacing: 0.02em;
+  }
+  .m-rg-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 9px;
+    background: rgba(0,0,0,0.05);
+    color: var(--ink-3);
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .m-body { display: none; }
+  .m-card.active .m-body { display: block; animation: fadeIn 0.35s ease; }
+
+  .m-inriktning {
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+  .m-targets {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: #FAFAFB;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    flex-wrap: wrap;
+  }
+  .m-target {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .m-target-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .m-target-value {
+    font-size: 13px;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .m-rule-section { margin-bottom: 18px; }
+  .m-rule-section:last-child { margin-bottom: 0; }
+  .m-section-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .m-section-label svg { width: 14px; height: 14px; }
+  .m-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .m-rule {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    padding: 9px 14px;
+    background: rgba(0,0,0,0.018);
+    border-radius: 6px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .m-rule-key {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .m-rule-val {
+    color: var(--ink-3);
+  }
+  .m-rule.rec {
+    background: transparent;
+    border: 1px dashed var(--line);
+  }
+  .m-rule.rec .m-rule-key { color: var(--recommend); }
+  .m-rule.rec .m-rule-val { color: var(--muted); }
+
+  .m-note {
+    padding: 12px 16px;
+    background: #FAFAFB;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+    font-style: italic;
+  }
+
+  /* Post-size categories (Fixed Income) */
+  .post-sizes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .post-size {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.018);
+    border-radius: 8px;
+  }
+  .post-size-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0F4848;
+    letter-spacing: -0.005em;
+  }
+  .post-size-attrs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--ink-3);
+    line-height: 1.55;
+  }
+  .post-size-attr {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .post-size-attr::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    background: #2A7878;
+    border-radius: 50%;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .post-size-attr strong {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+
+  /* Risk process steps */
+  .process-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .process-step {
+    border-left: 2px solid var(--line);
+    padding-left: 16px;
+    position: relative;
+  }
+  .process-step-num {
+    position: absolute;
+    left: -13px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: #0F4848;
+    color: #FFFFFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .process-step-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+    margin-left: 18px;
+    letter-spacing: -0.01em;
+  }
+  .process-intro {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-left: 18px;
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+  .process-substeps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .process-substeps li {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.018);
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-3);
+  }
+  .process-substep-key {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #0F4848;
+    letter-spacing: 0.02em;
+  }
+
+  /* Decision matrix for risk process */
+  .decision-matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .decision-cell {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+  .decision-cell .decision-action {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+  .decision-cell.buy {
+    background: rgba(48, 120, 80, 0.08);
+    border: 1px solid rgba(48, 120, 80, 0.2);
+  }
+  .decision-cell.buy .decision-action { color: #1A4D2A; }
+  .decision-cell.hold {
+    background: rgba(200, 150, 40, 0.08);
+    border: 1px solid rgba(200, 150, 40, 0.2);
+  }
+  .decision-cell.hold .decision-action { color: #8A6A20; }
+  .decision-cell.sell {
+    background: rgba(200, 60, 60, 0.08);
+    border: 1px solid rgba(200, 60, 60, 0.2);
+  }
+  .decision-cell.sell .decision-action { color: #9A2828; }
+  .decision-cell .decision-criteria {
+    color: var(--ink-3);
+  }
+
+  /* ============ EXEKVERING & CHECKLISTA ============ */
+  .exec-intro {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .exec-intro-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ep-green-soft);
+    border-radius: 10px;
+    color: var(--ep-green);
+  }
+  .exec-intro-icon svg { width: 20px; height: 20px; }
+  .exec-intro-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-3);
+  }
+  .exec-intro-text strong {
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .checklist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .checklist-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .checklist-card.full {
+    grid-column: 1 / -1;
+  }
+  .checklist-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .checklist-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ep-green);
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    background: var(--ep-green-soft);
+    border-radius: 4px;
+  }
+  .checklist-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  .checklist-items {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .checklist-item {
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-3);
+    padding: 3px 0;
+  }
+  .checklist-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--ep-green);
+    border-radius: 50%;
+    margin-top: 8px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Values chips */
+  .values-row {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0 14px;
+    flex-wrap: wrap;
+  }
+  .value-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    background: var(--ep-green-soft);
+    color: var(--ep-green-dark);
+    border-radius: 20px;
+  }
+
+  /* ============ FOOTER ============ */
+  .footer {
+    text-align: center;
+    margin-top: 56px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--muted-2);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 680px) {
+    .header h1 { font-size: 28px; }
+    .mandate-row { grid-template-columns: 1fr; gap: 12px; }
+    .risk-caps { flex-direction: row; flex-wrap: wrap; }
+    .risk-layout { grid-template-columns: 1fr; }
+    .m-rule { grid-template-columns: 1fr; gap: 2px; }
+    .checklist-grid { grid-template-columns: 1fr; }
+    .exec-intro { grid-template-columns: 1fr; }
+    .process-substeps li { grid-template-columns: 1fr; gap: 2px; }
+    .decision-matrix { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="container">
+
+  <header class="header">
+    <div class="header-brand">Ericsson &amp; Partners</div>
+    <h1>Investeringspolicy</h1>
+    <div class="version">VERSION 2026-01</div>
+  </header>
+
+  <!-- SEKTION 1: SYFTE & GENERELLT -->
+  <section class="section" id="syfte">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">01</span>
+      <h2 class="section-title">Syfte &amp; Generellt</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="stacked">
+      <div class="panel">
+        <div class="panel-label">Syfte</div>
+        <div class="prose">
+          <p>Investeringspolicyn avser att vara en sammankopplande länk mellan Ericsson &amp; Partners investeringsfilosofi, klassificering av risk, förvaltningsmandat, investeringsmoduler samt exekvering.</p>
+          <p>Policyn ska styra och vägleda den löpande förvaltningen vid investeringsbeslut och portföljallokering för att säkerställa att portföljerna under förvaltning följer respektive mandat samt att det finns en stringens mellan bolagets kommunikation och portföljernas sammansättning.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-label">Generellt</div>
+        <ul class="rule-list">
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Policyn innehåller tvingande regler och rekommendationer. Samtliga punkter är <strong>tvingande</strong> såvitt det inte framgår att det är en rekommendation.</span>
+          </li>
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Avvikelser från tvingande punkter ska vara på kunds begäran och ska dokumenteras och signeras av respektive kund – alternativt bekräftas via e-mail eller portföljgodkännande.</span>
+          </li>
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Policyn är ett internt dokument och uppdateras årligen. Vice VD ansvarar för den årliga uppdateringen och VD beslutar om att anta versionen.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- SEKTION 2: Investeringsfilosofi -->
+  <section class="section" id="filosofi">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Investeringsfilosofi</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="prose" style="margin-bottom: 18px;">
+      <p>Investeringsfilosofin är uppdelad i tre delar – <strong>E&amp;P:s arbetssätt</strong>, <strong>Portföljkonstruktion</strong> och <strong>Investeringsfilosofi</strong>.</p>
+    </div>
+    <div class="stacked">
+      <div class="panel">
+        <div class="panel-label">Vårt arbetssätt</div>
+        <div class="pillars">
+          <span class="pillar">Direktinvesteringar</span>
+          <span class="pillar">Diversifiering</span>
+          <span class="pillar">Långsiktig men aktiv</span>
+          <span class="pillar">Självständighet</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-label">Portföljkonstruktion</div>
+        <div class="prose" style="margin-bottom: 14px;">
+          <p>Varje kunds portfölj byggs av en kombination av moduler för att skapa rätt risk och potential efter kundens önskemål.</p>
+        </div>
+        <ul class="rule-list">
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Enskilda innehav får max utgöra <strong>20%</strong> av en kunds totala portföljvärde. <span class="inline-rek">(Rek max 5%)</span></span>
+          </li>
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Investeringar med tangerande underliggande innehav får max utgöra <strong>20%</strong> av en kunds totala portföljvärde. <span class="inline-rek">(Rek max 5%)</span></span>
+          </li>
+          <li>
+            <svg class="rule-icon mandatory"><use href="#i-shield"/></svg>
+            <span>Samtliga investeringar ska vara noterade/listade på en marknadsplats eller reglerad marknad.</span>
+          </li>
+          <li class="rec">
+            <span class="rek-label">Rek:</span>
+            <span>Enskild utländsk valuta max <strong>10%</strong> av portföljens värde – med undantag för EUR och USD som max får utgöra <strong>30%</strong>.</span>
+          </li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-label">Investeringsfilosofi</div>
+        <div class="prose">
+          <p>Vi är långsiktiga och fundamentala investerare. Alla investeringar vi gör baseras på en fundamental och oberoende tes om god riskjusterad potential. Vi drar även nytta av att vi är en liten och snabbfotad aktör som kan kapitalisera på snabba förändringar och beslut.</p>
+          <p>Vi fokuserar huvudsakligen på tre centrala faktorer i vår analys av investeringar: <strong>strukturell tillväxt</strong>, <strong>kvalitet</strong> och <strong>finansiell risk</strong>. Detta gäller samtliga våra investeringar, men med högre betoning på risk när det gäller Fixed Income.</p>
+        </div>
+        <div class="factors">
+          <div class="factor">
+            <div class="factor-label">Strukturell tillväxt</div>
+            <div class="factor-text">Vi vill investera i bolag som har hög tillväxt drivet av underliggande marknadstillväxt och/eller andelstillväxt. Avkastning drivs av vinsttillväxt över tid, och genom att verka inom denna del av marknaden förbättrar vi våra långsiktiga förutsättningar.</div>
+          </div>
+          <div class="factor">
+            <div class="factor-label">Kvalitet</div>
+            <div class="factor-text">Vi vill investera i bolag som har hög lönsamhet och hög kapitaleffektivitet. Dessa bolag uppvisar generellt högre stabilitet, starkare motståndskraft och högre avkastning över tid.</div>
+          </div>
+          <div class="factor">
+            <div class="factor-label">Finansiell risk</div>
+            <div class="factor-text">Vi fokuserar på låg absolut risk – låg cyklikalitet, begränsad belåning och sunda incitamentsstrukturer – samt risk i förhållande till potential. Vi utvärderar alltid nedsidan och lägger stor vikt vid denna analys.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- SEKTION 3: Förvaltningsmandat -->
+  <section class="section" id="mandat">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Förvaltningsmandat</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="prose" style="margin-bottom: 22px;">
+      <p>E&amp;P erbjuder fem förvaltningsmandat som skiljer sig i tillgångsfördelning och risktolerans. Varje kunds portfölj sätts enligt ett mandat, och modulerna kombineras inom mandatets ramar.</p>
+    </div>
+    <div class="mandate-grid">
+      <div class="mandate-row">
+        <div class="mandate-name">Ränteportfölj<span class="sub">100% Ränta</span></div>
+        <div class="cap-bars">
+          <div class="cap-row"><span class="cap-asset">Aktier</span><div class="cap-track"><div class="cap-fill aktier" style="width: 0%;"></div></div><span class="cap-value zero">0%</span></div>
+          <div class="cap-row"><span class="cap-asset">Alternativa</span><div class="cap-track"><div class="cap-fill alt" style="width: 0%;"></div></div><span class="cap-value zero">0%</span></div>
+          <div class="cap-row"><span class="cap-asset">Ränta</span><div class="cap-track"><div class="cap-fill ranta" style="width: 100%;"></div></div><span class="cap-value">100%</span></div>
+        </div>
+        <div class="risk-caps"><span class="risk-cap">Max 25% i RG 4</span></div>
+      </div>
+      <div class="mandate-row">
+        <div class="mandate-name">Balanserad Defensiv<span class="sub">Defensiv blandning</span></div>
+        <div class="cap-bars">
+          <div class="cap-row"><span class="cap-asset">Aktier</span><div class="cap-track"><div class="cap-fill aktier" style="width: 25%;"></div></div><span class="cap-value">25%</span></div>
+          <div class="cap-row"><span class="cap-asset">Alternativa</span><div class="cap-track"><div class="cap-fill alt" style="width: 25%;"></div></div><span class="cap-value">25%</span></div>
+          <div class="cap-row"><span class="cap-asset">Ränta</span><div class="cap-track"><div class="cap-fill ranta" style="width: 100%;"></div></div><span class="cap-value">100%</span></div>
+        </div>
+        <div class="risk-caps"><span class="risk-cap">Max 10% i RG 7</span></div>
+      </div>
+      <div class="mandate-row">
+        <div class="mandate-name">Balanserad Offensiv<span class="sub">Balanserad risk</span></div>
+        <div class="cap-bars">
+          <div class="cap-row"><span class="cap-asset">Aktier</span><div class="cap-track"><div class="cap-fill aktier" style="width: 75%;"></div></div><span class="cap-value">75%</span></div>
+          <div class="cap-row"><span class="cap-asset">Alternativa</span><div class="cap-track"><div class="cap-fill alt" style="width: 50%;"></div></div><span class="cap-value">50%</span></div>
+          <div class="cap-row"><span class="cap-asset">Ränta</span><div class="cap-track"><div class="cap-fill ranta" style="width: 100%;"></div></div><span class="cap-value">100%</span></div>
+        </div>
+        <div class="risk-caps"><span class="risk-cap">Max 25% i RG 7</span><span class="risk-cap">Max 25% i RG 4</span></div>
+      </div>
+      <div class="mandate-row">
+        <div class="mandate-name">Offensiv<span class="sub">Hög risktolerans</span></div>
+        <div class="cap-bars">
+          <div class="cap-row"><span class="cap-asset">Aktier</span><div class="cap-track"><div class="cap-fill aktier" style="width: 75%;"></div></div><span class="cap-value">75%</span></div>
+          <div class="cap-row"><span class="cap-asset">Alternativa</span><div class="cap-track"><div class="cap-fill alt" style="width: 50%;"></div></div><span class="cap-value">50%</span></div>
+          <div class="cap-row"><span class="cap-asset">Ränta</span><div class="cap-track"><div class="cap-fill ranta" style="width: 100%;"></div></div><span class="cap-value">100%</span></div>
+        </div>
+        <div class="risk-caps"><span class="risk-cap none">–</span></div>
+      </div>
+      <div class="mandate-row">
+        <div class="mandate-name">Aktieportfölj<span class="sub">100% Aktier</span></div>
+        <div class="cap-bars">
+          <div class="cap-row"><span class="cap-asset">Aktier</span><div class="cap-track"><div class="cap-fill aktier" style="width: 100%;"></div></div><span class="cap-value">100%</span></div>
+          <div class="cap-row"><span class="cap-asset">Alternativa</span><div class="cap-track"><div class="cap-fill alt" style="width: 0%;"></div></div><span class="cap-value zero">0%</span></div>
+          <div class="cap-row"><span class="cap-asset">Ränta</span><div class="cap-track"><div class="cap-fill ranta" style="width: 0%;"></div></div><span class="cap-value zero">0%</span></div>
+        </div>
+        <div class="risk-caps"><span class="risk-cap">Max 25% i RG 7</span></div>
+      </div>
+    </div>
+    <div class="mandate-caption">Staplarna indikerar <strong>tak</strong> per tillgångsslag, inte en fördelning som summerar till 100%.</div>
+    </div>
+  </section>
+
+  <!-- SEKTION 4: Riskklassificering -->
+  <section class="section" id="risk">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Riskklassificering</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="prose" style="margin-bottom: 22px;">
+      <p>E&amp;P klassificerar investeringar i åtta riskgrupper. Varje modul opererar inom ett definierat intervall av riskgrupper.</p>
+    </div>
+    <div class="risk-layout">
+      <div>
+        <div class="pyramid">
+          <div class="pyramid-row rg-8"><div class="rg-number">8</div><div class="rg-content">Derivat · Warranter · Hävståångscertifikat · Onoterade/ej listade aktier</div></div>
+          <div class="pyramid-row rg-7"><div class="rg-number">7</div><div class="rg-content">Utländska aktier · Svenska noterade (övriga listor) · Ej kapitalskyddade strukturerade produkter · Råvaror</div></div>
+          <div class="pyramid-row rg-6"><div class="rg-number">6</div><div class="rg-content">Svenska noterade aktier (Large &amp; Mid Cap) · Hedgefonder · Specialfonder</div></div>
+          <div class="pyramid-row rg-5"><div class="rg-number">5</div><div class="rg-content">Aktiefonder · Indexfonder · Blandfonder · Aktierelaterade ETF:er · Kapitalskyddade strukturerade produkter</div></div>
+          <div class="pyramid-row rg-4"><div class="rg-number">4</div><div class="rg-content">Räntebevis · Kreditobligationer</div></div>
+          <div class="pyramid-row rg-3"><div class="rg-number">3</div><div class="rg-content">Obligationer (High Yield) · HY-fonder/ETF:er</div></div>
+          <div class="pyramid-row rg-2"><div class="rg-number">2</div><div class="rg-content">Obligationer (Investment Grade) · IG-fonder/ETF:er</div></div>
+          <div class="pyramid-row rg-1"><div class="rg-number">1</div><div class="rg-content">Penningmarknadsinstrument · Likviditetsfonder</div></div>
+        </div>
+      </div>
+      <div class="module-mapper">
+        <h4>Moduler &amp; riskgrupper</h4>
+        <ul class="module-map-list">
+          <li class="module-map-item"><span class="name">Core Sverige</span><span class="rg-range">RG 6–7</span></li>
+          <li class="module-map-item"><span class="name">Core Världen</span><span class="rg-range">RG 7</span></li>
+          <li class="module-map-item"><span class="name">Edge</span><span class="rg-range">RG 6–7</span></li>
+          <li class="module-map-item"><span class="name">Alternativa</span><span class="rg-range">RG 1–7</span></li>
+          <li class="module-map-item"><span class="name">Fixed Income</span><span class="rg-range">RG 2–4</span></li>
+        </ul>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- SEKTION 5: Moduler -->
+  <section class="section" id="moduler">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">05</span>
+      <h2 class="section-title">Moduler</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="prose" style="margin-bottom: 22px;">
+      <p>E&amp;P:s förvaltning är uppdelad i fem moduler. Varje modul har egen investeringsstrategi, riskprofil och målavkastning. Klicka på en modul för att se fullständig policy.</p>
+    </div>
+    <div class="module-cards">
+
+      <!-- CORE SVERIGE -->
+      <div class="m-card" data-id="core-sv" onclick="toggleModule(this)" style="background:#E4EDF6;">
+        <div class="m-accent" style="background:linear-gradient(90deg,#2D6B9E,#1B3A5C);"></div>
+        <div class="m-header">
+          <div><div class="m-title" style="color:#1B3A5C;">Core Sverige</div><div class="m-focus" style="color:#2D6B9E;">Stabilitet &amp; Direktavkastning</div></div>
+          <div class="m-rg-badge">RG 6–7</div>
+        </div>
+        <div class="m-body">
+          <div class="m-inriktning" style="background:#E4EDF6;">En fokuserad aktiemodul med större stabila svenska bolag. Mål: överprestera OMXS30 varje år.</div>
+          <div class="m-targets">
+            <div class="m-target"><span class="m-target-label">Benchmark</span><span class="m-target-value">OMXS30</span></div>
+            <div class="m-target"><span class="m-target-label">Internt mål</span><span class="m-target-value">Blechers Sverigefond</span></div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2D6B9E;"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Tvingande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Investering</span><span class="m-rule-val">Alltid fullinvesterad (tillfällig likvid vid omviktning ok)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Antal innehav</span><span class="m-rule-val">15 bolag som riktmärke (± 2)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Diversifiering</span><span class="m-rule-val">Med hänsyn till bransch</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">OMXS30-exponering</span><span class="m-rule-val">Minst 50% mot bolag listade på OMXS30</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Direktavkastning</span><span class="m-rule-val">Genomsnitt ≥ 3%/år (modul), ≥ 1,5% per innehav (utd. + återköp)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Market cap</span><span class="m-rule-val">Minst 5 mdr SEK</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Listning</span><span class="m-rule-val">Enbart OMX Nasdaq Stockholm, i SEK</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">ADTV-krav</span><span class="m-rule-val">Daglig snittvolym ≥ 4× orderns volym</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Max vikt</span><span class="m-rule-val">10% av modulens totala värde</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2D6B9E;">→ Ledande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Avkastningskrav</span><span class="m-rule-val">Fundamental analys som motiverar ≥ 10% inom 12–24 mån</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Kvalitetskrav</span><span class="m-rule-val">Stabila karaktärsdrag: utdelningshistorik, skuldsättning, lönsamhet</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2D6B9E;">→ Riskhantering</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Drawdown-varning</span><span class="m-rule-val">–10% från topp → pausa nya köp, omvärdera alla innehav</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Profit-taking</span><span class="m-rule-val">+25% från GAV → sälj minst 25% av positionen</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Stoploss</span><span class="m-rule-val">Köpkurs – 8×ATR (minst 15%). Vid träff säljs alltid minst 50%</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1B3A5C;">Position sizing</span><span class="m-rule-val">Max = 1,5% portföljrisk / (8×ATR)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDGE -->
+      <div class="m-card" data-id="edge" onclick="toggleModule(this)" style="background:#E8F0E8;">
+        <div class="m-accent" style="background:linear-gradient(90deg,#307850,#1A4D2A);"></div>
+        <div class="m-header">
+          <div><div class="m-title" style="color:#1A4D2A;">Edge</div><div class="m-focus" style="color:#307850;">Tillväxt</div></div>
+          <div class="m-rg-badge">RG 6–7</div>
+        </div>
+        <div class="m-body">
+          <div class="m-inriktning" style="background:#E8F0E8;">Kvalitetsbolag med hög tillväxtpotential inom växande strukturella områden. Mål: överprestera OMXS Small Cap varje år.</div>
+          <div class="m-targets">
+            <div class="m-target"><span class="m-target-label">Benchmark</span><span class="m-target-value">OMXS Small Cap</span></div>
+            <div class="m-target"><span class="m-target-label">Internt mål</span><span class="m-target-value">Tin Fonder</span></div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#307850;"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Tvingande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Investering</span><span class="m-rule-val">Alltid fullinvesterad</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Antal innehav</span><span class="m-rule-val">15 bolag som riktmärke (± 2)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Utländska börser</span><span class="m-rule-val">Max 25% av innehaven</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Diversifiering</span><span class="m-rule-val">Med hänsyn till bransch</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">ADTV-krav</span><span class="m-rule-val">Daglig snittvolym > ¼ av orderns volym</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Max vikt</span><span class="m-rule-val">11% av modulens totala värde</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Inköp</span><span class="m-rule-val">Delas alltid i 2 omgångar</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#307850;">→ Ledande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Avkastningskrav</span><span class="m-rule-val">Fundamental analys som motiverar ≥ 30% inom 24 mån</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Kvalitetskrav</span><span class="m-rule-val">Stor marknadspotential, skalbar affärsmodell, god försäljningstillväxt, god lönsamhet (marginaler &amp; ROIC), stabil finansiell ställning, stark ägare &amp; ledning</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Strukturellt tema</span><span class="m-rule-val">Innehav ska verka inom växande strukturellt område</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#307850;">→ Riskhantering</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Drawdown-varning</span><span class="m-rule-val">–10% från topp → pausa nya köp, omvärdera alla innehav</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Profit-taking</span><span class="m-rule-val">+30% från GAV → sälj minst 30%, aktivera rullande stop</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Rullande stop</span><span class="m-rule-val">High – 4×ATR (flyttas enbart uppåt)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Stoploss</span><span class="m-rule-val">Köpkurs – 4×ATR (minst 20%). Vid träff säljs alltid minst 50%</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Position sizing</span><span class="m-rule-val">Max = 1,5% / (Stoploss + likviditetsstraff)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#1A4D2A;">Likviditetsstraff</span><span class="m-rule-val">+10% om ADTV &lt; ½ position, +5% om ADTV &lt; 1× position</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CORE VÄRLDEN -->
+      <div class="m-card" data-id="core-v" onclick="toggleModule(this)" style="background:#EAEAEA;">
+        <div class="m-accent" style="background:linear-gradient(90deg,#555555,#2A2A2A);"></div>
+        <div class="m-header">
+          <div><div class="m-title" style="color:#2A2A2A;">Core Världen</div><div class="m-focus" style="color:#555555;">Momentum</div></div>
+          <div class="m-rg-badge">RG 7</div>
+        </div>
+        <div class="m-body">
+          <div class="m-inriktning" style="background:#EAEAEA;">En fokuserad och kvantbaserad aktiemodul med globala bolag som visar starkt momentum. Urval sker i fyra steg – en gemensam första screening följd av tre parallella faktor-screeningar. Kvartalsvis omallokering.</div>
+          <div class="m-targets">
+            <div class="m-target"><span class="m-target-label">Benchmark</span><span class="m-target-value">MSCI World SEK</span></div>
+            <div class="m-target"><span class="m-target-label">Internt mål</span><span class="m-target-value">Berkshire Hathaway</span></div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#555555;"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Tvingande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Investering</span><span class="m-rule-val">Alltid fullinvesterad (tillfällig likvid vid omviktning ok)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Antal innehav</span><span class="m-rule-val">15 bolag (5 per sub-strategi)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Diversifiering</span><span class="m-rule-val">Med hänsyn till bransch och geografi</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Valuta</span><span class="m-rule-val">Får vara 100% i utländsk valuta</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Börser</span><span class="m-rule-val">Internationella börser där E&amp;P har handelstillgång</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Market cap</span><span class="m-rule-val">Minst 10 mdr USD</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#555555;">→ Urvalsprocess</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">1. Första screening</span><span class="m-rule-val">Bolag &lt; 10 mdr USD förkastas. Resterande rankas på kursutveckling 3, 6 och 12 mån – topp 10% går vidare.</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">2. Value &amp; Momentum</span><span class="m-rule-val">⅓ av exponeringen. Rankas på EV/EBIT och Direktavkastning. Topp 15 → 5 väljs ut med hänsyn till rank, geografi och bransch.</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">3. Quality &amp; Momentum</span><span class="m-rule-val">⅓ av exponeringen. Rankas på ROIC. Topp 15 → 5 väljs ut med hänsyn till rank, geografi och bransch.</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">4. Size &amp; Momentum</span><span class="m-rule-val">⅓ av exponeringen. Rankas på marknadsvärde. Topp 15 → 5 väljs ut med hänsyn till rank, geografi och bransch.</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#555555;">→ Omviktning</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Frekvens</span><span class="m-rule-val">Kvartalsvis</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Försäljning</span><span class="m-rule-val">Innehav som rankar utanför processen säljs – max 8 bolag per omviktning</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#2A2A2A;">Köp</span><span class="m-rule-val">Ersätts av nya investeringskandidater från aktuell screening</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#555555;">→ Riskhantering</div>
+            <div class="m-note">Kvantbaserad strategi – riskhantering sker primärt genom systematisk rotation och diversifiering, inte genom diskretionära stoppar.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALTERNATIVA -->
+      <div class="m-card" data-id="alt" onclick="toggleModule(this)" style="background:#FBF0E0;">
+        <div class="m-accent" style="background:linear-gradient(90deg,#C47A1A,#7A4A0A);"></div>
+        <div class="m-header">
+          <div><div class="m-title" style="color:#7A4A0A;">Alternativa</div><div class="m-focus" style="color:#C47A1A;">Riskspridning</div></div>
+          <div class="m-rg-badge">RG 1–7</div>
+        </div>
+        <div class="m-body">
+          <div class="m-inriktning" style="background:#FBF0E0;">Brett placeringsmandat som syftar till att sänka portföljens totala risk. Ej avsedd att investeras i separat.</div>
+          <div class="m-targets">
+            <div class="m-target"><span class="m-target-label">Benchmark</span><span class="m-target-value">7%/4 kvartalsvis</span></div>
+            <div class="m-target"><span class="m-target-label">Internt mål</span><span class="m-target-value">RLY</span></div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#C47A1A;"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Tvingande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Kombinationsmodul</span><span class="m-rule-val">Enbart i kombination med andra moduler</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Mandat</span><span class="m-rule-val">Aktier, räntor, råvaru-ETF:er, hedge-ETF:er, krypto-ETF:er, strukturerade produkter, preferensaktier</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Valuta</span><span class="m-rule-val">Får vara 100% i utländsk valuta</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Antal innehav</span><span class="m-rule-val">5 riktmärke, max 8</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Max vikt</span><span class="m-rule-val">40% av modulens storlek</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">ETF-volym</span><span class="m-rule-val">Minst 500 MSEK i instrumentvolym</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Hävstång</span><span class="m-rule-val">Tillåtet (ej riskgrupp 8). Inverterade max 2×</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#C47A1A;">→ Ledande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">ADTV-krav</span><span class="m-rule-val">Betydligt större än orderns volym</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Fysiska tillgångar</span><span class="m-rule-val">ETF:er ska ha fysiska underliggande tillgångar</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#C47A1A;">→ Riskhantering</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Drawdown-varning</span><span class="m-rule-val">–10% från topp → pausa nya köp, omvärdera alla innehav</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Profit-taking</span><span class="m-rule-val">+30% från GAV → sälj minst 30%, aktivera rullande stop</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Rullande stop</span><span class="m-rule-val">High – 4×ATR (flyttas enbart uppåt)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#7A4A0A;">Stoploss</span><span class="m-rule-val">Köpkurs – 4×ATR (minst 15%). Vid träff säljs alltid minst 50%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIXED INCOME -->
+      <div class="m-card" data-id="fi" onclick="toggleModule(this)" style="background:#E0EEEE;">
+        <div class="m-accent" style="background:linear-gradient(90deg,#2A7878,#0F4848);"></div>
+        <div class="m-header">
+          <div><div class="m-title" style="color:#0F4848;">Fixed Income</div><div class="m-focus" style="color:#2A7878;">Kassaflöde</div></div>
+          <div class="m-rg-badge">RG 2–4</div>
+        </div>
+        <div class="m-body">
+          <div class="m-inriktning" style="background:#E0EEEE;">En defensiv, väldiverifierad och individanpassad modul med direktinvesteringar i främst företagsobligationer som genererar ett löpande kassaflöde.</div>
+          <div class="m-targets">
+            <div class="m-target"><span class="m-target-label">Benchmark</span><span class="m-target-value">STIBOR + 3%</span></div>
+            <div class="m-target"><span class="m-target-label">Internt mål</span><span class="m-target-value">Spiltan Räntefond</span></div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2A7878;"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Tvingande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Investering</span><span class="m-rule-val">Alltid fullinvesterad</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Valutaexponering</span><span class="m-rule-val">Ränteportfölj: enbart SEK. Balanserad/Offensiv: max 20% utländsk valuta</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Riskgrupp-tak</span><span class="m-rule-val">Max 10% exponering mot Riskgrupp 4</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Kupongstruktur</span><span class="m-rule-val">Max 20% exponering mot fast kupong</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2A7878;">→ Ledande krav</div>
+            <div class="m-rules">
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Avkastningsmål</span><span class="m-rule-val">4% + STIBOR efter avgifter (om inget individuellt mål satt)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Antal innehav (Ränteportfölj)</span><span class="m-rule-val">20–30 innehav (färre vid hela handelsposter, kort löptid eller låg risk)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Antal innehav (Balanserad/Offensiv)</span><span class="m-rule-val">10–15 innehav</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Sektor-diversifiering</span><span class="m-rule-val">Max 30% per sektor; max 10% per bransch (fastighet och bank max 20%)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Löptid / kategori</span><span class="m-rule-val">Max 40% mot T1/Perpetual &amp; T2/Subordinated (max 20% vardera)</span></div>
+              <div class="m-rule"><span class="m-rule-key" style="color:#0F4848;">Utvärderingsfokus</span><span class="m-rule-val">Finansiell ställning, historisk lönsamhet, kassaflödesgenerering, räntetäckningsgrad</span></div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2A7878;">→ Riskhanteringsprocess</div>
+            <div class="process-steps">
+              <div class="process-step">
+                <div class="process-step-num">1</div>
+                <div class="process-step-title">Datainsamling</div>
+                <ul class="process-substeps">
+                  <li><span class="process-substep-key">Källa</span><span>Designerad analytiker (partners) alt. bolagets rapportering</span></li>
+                  <li><span class="process-substep-key">Frekvens</span><span>Kvartalsvis för topp 15 innehav – resterande varannat kvartal</span></li>
+                </ul>
+              </div>
+              <div class="process-step">
+                <div class="process-step-num">2</div>
+                <div class="process-step-title">Analys och dokumentation</div>
+                <div class="process-intro">Nedan datapunkter analyseras och dokumenteras vid datahämtning. Varje innehav klassas enligt beslutsmatrisen.</div>
+                <ul class="process-substeps">
+                  <li><span class="process-substep-key">Kovenanter</span><span>Bra headroom · negativ trend · risk för brott</span></li>
+                  <li><span class="process-substep-key">ICR</span><span>Trend</span></li>
+                  <li><span class="process-substep-key">Leverage</span><span>Trend</span></li>
+                  <li><span class="process-substep-key">Kassaflöde</span><span>Trend</span></li>
+                  <li><span class="process-substep-key">Analytikervy</span><span>Kommentar och rekommendation</span></li>
+                </ul>
+              </div>
+              <div class="process-step">
+                <div class="process-step-num">3</div>
+                <div class="process-step-title">Beslutsmatris</div>
+                <div class="decision-matrix">
+                  <div class="decision-cell buy"><div class="decision-action">Öka</div><div class="decision-criteria">Bra headroom, neutral till positiv trend på alla nyckeltal, behåll/öka från analytiker</div></div>
+                  <div class="decision-cell hold"><div class="decision-action">Minska</div><div class="decision-criteria">Mellanläge – försämrad trend på enstaka nyckeltal utan tydliga säljsignaler</div></div>
+                  <div class="decision-cell sell"><div class="decision-action">Sälj</div><div class="decision-criteria">Otillräcklig headroom, 2 av 3 nyckeltal visar negativ trend, sälj från analytiker</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="m-rule-section">
+            <div class="m-section-label" style="color:#2A7878;">→ Riktlinjer för fastställande av positionsstorlek</div>
+            <div style="font-size: 12.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.55;">Generell regel: max 10% av emissionsvolym.</div>
+            <div class="post-sizes">
+              <div class="post-size"><div class="post-size-label">Normal, FI AUM × 4%</div></div>
+              <div class="post-size">
+                <div class="post-size-label">Större, FI AUM × 5%</div>
+                <div class="post-size-attrs">
+                  <span class="post-size-attr"><strong>Yield</strong>STIBOR + 3,5–5,5%</span>
+                  <span class="post-size-attr"><strong>Potential</strong>Mycket bra riskjusterad</span>
+                </div>
+              </div>
+              <div class="post-size">
+                <div class="post-size-label">Mindre, FI AUM × 2%</div>
+                <div class="post-size-attrs">
+                  <span class="post-size-attr"><strong>Yield</strong>Utanför STIBOR + 3,5–5,5%</span>
+                  <span class="post-size-attr"><strong>Potential</strong>Acceptabel riskjusterad</span>
+                </div>
+              </div>
+              <div class="post-size"><div class="post-size-label">Special, kundspecifik volym</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    </div>
+  </section>
+
+  <!-- SEKTION 6: Exekvering & Checklista -->
+  <section class="section" id="exekvering">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Exekvering &amp; Checklista</h2>
+      <svg class="section-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="section-body">
+    <div class="exec-intro">
+      <div class="exec-intro-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <div class="exec-intro-text">
+        Inför exekvering ska ordergivaren säkerställa att allt i denna policy följs samt nedanstående checklista. <strong>Det är tvingande att följa Checklista vid orderutförande inför, under och efter varje order.</strong>
+      </div>
+    </div>
+    <div class="checklist-grid">
+      <div class="checklist-card">
+        <div class="checklist-header"><span class="checklist-number">01</span><span class="checklist-title">Strategi &amp; Investeringspolicy</span></div>
+        <ul class="checklist-items">
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Är transaktionen förenlig med företagets investeringspolicy?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Passar affären med rådande strategi?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Följer du riktlinjerna för bästa orderutförande?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Passar investeringen respektive kunds förvaltningsmandat?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Är eventuell kundspecifik investeringspolicy följd?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Kan investeringen medföra för hög exponering mot RG 4 eller RG 7?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Blir portföljförändringen utförd för samtliga berörda kunder på samtliga institut?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Kontakta respektive kundansvarig vid tveksamheter.</span></li>
+        </ul>
+      </div>
+      <div class="checklist-card">
+        <div class="checklist-header"><span class="checklist-number">02</span><span class="checklist-title">Orderläggning</span></div>
+        <ul class="checklist-items">
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Orderdetaljer kommunicerade till relevanta kundansvariga, inkl. slutgiltig fördelningslista.</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Är värdepappret noterat? (Endast noterade kan läggas på ISK.)</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Vid RG 4 eller RG 7: säkerställ att ingen portfölj överstiger sitt mandat.</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Kan värdepappret förvaras hos respektive depåinstitut? (Särskilt för Nordnet.)</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Minimicourtage och minsta post kontrollerade?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Samtliga depåer har tillräckligt med likvida medel?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Tydliga instruktioner till motpart om courtage, orderhantering och limiter?</span></li>
+        </ul>
+      </div>
+      <div class="checklist-card">
+        <div class="checklist-header"><span class="checklist-number">03</span><span class="checklist-title">Dokumentation</span></div>
+        <ul class="checklist-items">
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Fördelningslista / affärsunderlag skickad till respektive institut.</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Daglig transaktionslista ifylld senast kl 09 nästkommande arbetsdag.</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Investeringsråd skrivet för bredare placeringar (helst inom en vecka, senast inom en månad – sparat som PDF på servern).</span></li>
+        </ul>
+      </div>
+      <div class="checklist-card">
+        <div class="checklist-header"><span class="checklist-number">04</span><span class="checklist-title">E&amp;P Generellt</span></div>
+        <div class="values-row">
+          <span class="value-chip">Långsiktighet</span>
+          <span class="value-chip">Engagemang</span>
+          <span class="value-chip">Respekt</span>
+        </div>
+        <ul class="checklist-items">
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Agerar du utifrån kundens bästa?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Agerar du utifrån företagets värdegrund?</span></li>
+          <li class="checklist-item"><span class="checklist-dot"></span><span>Har du kunskap om företagets intäkt för transaktionen?</span></li>
+        </ul>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <div class="footer">E&amp;P INVESTERINGSPOLICY · SAMMANSTÄLLT MARS 2026</div>
+
+</div>
+
+<script>
+  const moduleColorMap = {
+    'core-sv': { bg: '#FFFFFF', border: '#2D6B9E', closedBg: '#E4EDF6' },
+    'edge':    { bg: '#FFFFFF', border: '#307850', closedBg: '#E8F0E8' },
+    'core-v':  { bg: '#FFFFFF', border: '#555555', closedBg: '#EAEAEA' },
+    'alt':     { bg: '#FFFFFF', border: '#C47A1A', closedBg: '#FBF0E0' },
+    'fi':      { bg: '#FFFFFF', border: '#2A7878', closedBg: '#E0EEEE' }
+  };
+
+  function toggleModule(el) {
+    const id = el.dataset.id;
+    const wasActive = el.classList.contains('active');
+    document.querySelectorAll('.m-card').forEach(c => {
+      const cid = c.dataset.id;
+      const cm = moduleColorMap[cid];
+      c.classList.remove('active');
+      c.style.background = cm.closedBg;
+      c.style.borderColor = 'transparent';
+    });
+    if (!wasActive) {
+      const cm = moduleColorMap[id];
+      el.classList.add('active');
+      el.style.background = cm.bg;
+      el.style.borderColor = cm.border;
+    }
+  }
+
+  function toggleSection(headerEl) {
+    const section = headerEl.closest('.section');
+    section.classList.toggle('open');
+  }
+</script>
+
+</body>
+</html>

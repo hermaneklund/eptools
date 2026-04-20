@@ -4,7 +4,8 @@
       "Bash(awk -F: '{print $1, $2}')",
       "Bash(awk '{print $1, $2}')",
       "Bash(read line *)",
-      "Bash(awk -F: '{print $1, $0}')"
+      "Bash(awk -F: '{print $1, $0}')",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

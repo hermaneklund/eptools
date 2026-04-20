@@ -1393,6 +1393,11 @@ def _update_all_models_for_today() -> None:
             )
         conn.commit()
 
+@app.get("/investeringspolicy", response_class=HTMLResponse)
+def investeringspolicy(request: Request):
+    return templates.TemplateResponse("investeringspolicy.html", {"request": request})
+
+
 @app.post("/models-update")
 def models_update(request: Request):
     _update_all_models_for_today()

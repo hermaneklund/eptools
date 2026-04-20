@@ -1839,8 +1839,18 @@ body {
 
 .dashboard-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   margin: 12px 0 8px;
+}
+
+.dashboard-actions form {
+  display: flex;
+}
+
+.dashboard-actions .sidebar-button {
+  width: 160px;
 }
 
 .dashboard-perf-table {
