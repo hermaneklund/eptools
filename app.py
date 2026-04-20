@@ -11,7 +11,7 @@ import unicodedata
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 try:
@@ -1394,8 +1394,8 @@ def _update_all_models_for_today() -> None:
         conn.commit()
 
 @app.get("/investeringspolicy", response_class=HTMLResponse)
-def investeringspolicy(request: Request):
-    return templates.TemplateResponse("investeringspolicy.html", {"request": request})
+def investeringspolicy():
+    return FileResponse(BASE_DIR / "templates" / "investeringspolicy.html", media_type="text/html")
 
 
 @app.post("/models-update")
