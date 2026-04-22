@@ -2974,7 +2974,8 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
             if pd.notna(kurs):
                 currency_map[key] = float(kurs)
 
-    rows = []
+    # Pass 1: compute metrics for every account without filtering
+    all_computed = []
     for _, row in mandat.iterrows():
         number = row.get("Number", row.get("Nummer", ""))
         if number == "" or pd.isna(number):
@@ -2984,6 +2985,7 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
         fi_share = 0.0
         holdings_total = 0.0
         valuta_total = 0.0
+        fi_total = 0.0
         portfolio_other_sum = 0.0
         if not details.empty:
             modul = details["Short Name"].apply(
@@ -3053,38 +3055,68 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
             fi_count = (
                 details["Short Name"]
                 .apply(lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", ""))
-                .astype(str)
-                .str.strip()
-                .str.lower()
+                .astype(str).str.strip().str.lower()
                 .eq("fixed income")
                 .sum()
             )
         position_fi = (fi_total / fi_count) if fi_count else 0.0
-        poster_fi = (kassa_fi / position_fi) if position_fi else 0.0
-        if str(row.get("Mandat", "")).strip().lower() == "matardepå":
-            poster_fi = ""
+        fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
 
-        if position_fi:
-            fi_position_value = max(50000, round(position_fi / 50000) * 50000)
-        else:
-            fi_position_value = 0.0
+        all_computed.append({
+            "mandat_row": row,
+            "number": number,
+            "kassa_fi": kassa_fi,
+            "holdings_total": holdings_total,
+            "valuta_total": valuta_total,
+            "fi_share": fi_share,
+            "fixed_income_model": fixed_income_model,
+            "position_fi": position_fi,
+            "fi_position_value": fi_position_value,
+        })
+
+    # Build matardepå lookup by Kund (from ALL accounts, not just filtered ones)
+    matardepo_kassa_by_kund = {}
+    matardepo_holdings_by_kund = {}
+    matardepo_rows = []
+    for c in all_computed:
+        if str(c["mandat_row"].get("Mandat", "")).strip().lower() == "matardepå":
+            kund_key = str(c["mandat_row"].get("Kund", "")).strip()
+            matardepo_kassa_by_kund[kund_key] = c["kassa_fi"]
+            matardepo_holdings_by_kund[kund_key] = c["holdings_total"]
+            matardepo_rows.append({
+                "Number": c["number"],
+                "Kund": c["mandat_row"].get("Kund", ""),
+                "Kassa FI": c["kassa_fi"],
+            })
+
+    # Pass 2: filter using combined kassa_fi and holdings_total
+    rows = []
+    for c in all_computed:
+        row = c["mandat_row"]
+        mandat_lower = str(row.get("Mandat", "")).strip().lower()
+        if mandat_lower == "matardepå":
+            continue
+        kund_key = str(row.get("Kund", "")).strip()
+        effective_kassa_fi = c["kassa_fi"] + matardepo_kassa_by_kund.get(kund_key, 0)
+        effective_holdings = c["holdings_total"] + matardepo_holdings_by_kund.get(kund_key, 0)
         if (
-            fixed_income_model > fi_share
-            and kassa_fi > 50000
-            and fixed_income_model >= 0.09
-            and str(row.get("Mandat", "")).strip().lower() != "aktier"
-            and holdings_total >= 200000
+            c["fixed_income_model"] > c["fi_share"]
+            and effective_kassa_fi > 50000
+            and c["fixed_income_model"] >= 0.09
+            and mandat_lower != "aktier"
+            and effective_holdings >= 200000
         ):
+            poster_fi = (c["kassa_fi"] / c["position_fi"]) if c["position_fi"] else 0.0
             rows.append(
                 {
-                    "Number": number,
+                    "Number": c["number"],
                     "Kund": row.get("Kund", ""),
                     "Mandat": row.get("Mandat", ""),
-                    "Kassa": valuta_total,
-                    "Kassa FI": kassa_fi,
+                    "Kassa": c["valuta_total"],
+                    "Kassa FI": c["kassa_fi"],
                     "Att köpa": poster_fi,
                     "FI-notering": "" if pd.isna(row.get("FI-notering", "")) else row.get("FI-notering", ""),
-                    "Position FI": fi_position_value,
+                    "Position FI": c["fi_position_value"],
                 }
             )
 
@@ -3094,37 +3126,19 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
         sort_key = "att_kopa"
     field_map = {"att_kopa": "Att köpa", "poster_fi": "Att köpa", "kassa_fi": "Kassa FI", "number": "Number"}
     sort_field = field_map[sort_key]
-    kassa_fi_matardepo = sum(
-        _to_float(r.get("Kassa FI", 0)) or 0
-        for r in rows
-        if str(r.get("Mandat", "")).strip().lower() == "matardepå"
-    )
-    matardepo_rows = [
-        {
-            "Number": r.get("Number", ""),
-            "Kund": r.get("Kund", ""),
-            "Kassa FI": r.get("Kassa FI", 0),
-        }
-        for r in rows
-        if str(r.get("Mandat", "")).strip().lower() == "matardepå"
-    ]
-    matardepo_by_kund = {}
-    for r in rows:
-        if str(r.get("Mandat", "")).strip().lower() == "matardepå":
-            kund_key = str(r.get("Kund", "")).strip()
-            matardepo_by_kund[kund_key] = r.get("Kassa FI", 0)
+    kassa_fi_matardepo = sum(_to_float(r.get("Kassa FI", 0)) or 0 for r in matardepo_rows)
 
     for r in rows:
-        if str(r.get("Mandat", "")).strip().lower() != "matardepå":
-            kund_key = str(r.get("Kund", "")).strip()
-            if kund_key in matardepo_by_kund:
-                r["Kassa FI Matardepå"] = matardepo_by_kund[kund_key]
-                position_val = _to_float(r.get("Position FI", 0)) or 0
-                if position_val:
-                    combined_kassa = (_to_float(r.get("Kassa FI", 0)) or 0) + (_to_float(r.get("Kassa FI Matardepå", 0)) or 0)
-                    r["Att köpa"] = combined_kassa / position_val
-            else:
-                r["Kassa FI Matardepå"] = None
+        kund_key = str(r.get("Kund", "")).strip()
+        matardepo_kassa = matardepo_kassa_by_kund.get(kund_key)
+        if matardepo_kassa is not None:
+            r["Kassa FI Matardepå"] = matardepo_kassa
+            position_val = _to_float(r.get("Position FI", 0)) or 0
+            if position_val:
+                combined_kassa = (_to_float(r.get("Kassa FI", 0)) or 0) + matardepo_kassa
+                r["Att köpa"] = combined_kassa / position_val
+        else:
+            r["Kassa FI Matardepå"] = None
 
     if sort_key == "number":
         rows = sorted(
