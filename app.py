@@ -770,6 +770,39 @@ def _build_compliance_rows(rows: list[dict], number_col: str) -> list[dict]:
     return compliance_rows
 
 
+def _compute_rg567_book_total() -> float:
+    detaljerat = _load_sheet("Detaljerat")
+    taggar_df = _load_sheet("Taggar")
+    if detaljerat.empty:
+        return 0.0
+    taggar_map = {}
+    currency_map = {}
+    if "Short Name" in taggar_df.columns:
+        for _, row in taggar_df.iterrows():
+            key = _normalize_key(row.get("Short Name", ""))
+            if not key:
+                continue
+            taggar_map[key] = row.to_dict()
+            kurs = pd.to_numeric(row.get("Kurs", None), errors="coerce")
+            if pd.notna(kurs):
+                currency_map[key] = float(kurs)
+    detaljerat["__rg"] = detaljerat["Short Name"].apply(
+        lambda s: _to_float(taggar_map.get(_normalize_key(s), {}).get("RG", ""))
+    )
+    detaljerat["__modul"] = detaljerat["Short Name"].apply(
+        lambda s: str(taggar_map.get(_normalize_key(s), {}).get("Modul", "")).strip().lower()
+    )
+    counts = _to_float_series(detaljerat.get("Available Count", pd.Series([0] * len(detaljerat)))).fillna(0)
+    prices = _to_float_series(detaljerat.get("Price", pd.Series([0] * len(detaljerat)))).fillna(0)
+    base_value = counts * prices
+    base_value = base_value.where(detaljerat["__modul"] != "fixed income", base_value / 100)
+    if "Currency" in detaljerat.columns:
+        rates = detaljerat["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+        base_value = base_value * _to_float_series(rates).fillna(1.0)
+    detaljerat["__value"] = base_value.fillna(0)
+    return float(detaljerat[detaljerat["__rg"].isin([5, 6, 7])]["__value"].sum())
+
+
 def _get_compliance_breaches_for_number(number: str) -> list[str]:
     normalized_number = _normalize_number_value(number)
     if not normalized_number:
@@ -4537,6 +4570,7 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
         row["_row_key"] = _normalize_number_value(row.get(number_col, ""))
 
     compliance_rows = _build_compliance_rows(rows, number_col) if compliance else []
+    rg567_total = _compute_rg567_book_total() if compliance else None
 
     return templates.TemplateResponse(
 
@@ -4557,6 +4591,7 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
             "sort_by": sort_by,
             "compliance": bool(compliance),
             "compliance_rows": compliance_rows,
+            "rg567_total": rg567_total,
         },
     )
 

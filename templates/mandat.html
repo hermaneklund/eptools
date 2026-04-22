@@ -283,6 +283,12 @@
       {% if compliance %}
         <section class="sheet" id="compliance">
           <h2>Compliance Report</h2>
+          {% if rg567_total is not none %}
+            <div class="compliance-summary">
+              <span class="compliance-summary-label">RG 5/6/7 — Total bokvolym</span>
+              <span class="compliance-summary-value">{{ "{:,.0f}".format(rg567_total).replace(",", " ") }} SEK</span>
+            </div>
+          {% endif %}
           {% if compliance_rows and compliance_rows|length > 0 %}
             <div class="table-wrap compliance-table-wrap">
               <table class="compliance-table">
