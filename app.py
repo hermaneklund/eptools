@@ -3196,10 +3196,8 @@ def fixed_income_export(sort_by: str = "att_kopa"):
     ctx = _build_fixed_income_context(sort_by=sort_by)
     columns = ctx["columns"]
     rows = ctx["rows"]
-
-    normal_rows = [r for r in rows if str(r.get("Mandat", "")).strip().lower() != "matardepå"]
-    matardepo_rows = [r for r in rows if str(r.get("Mandat", "")).strip().lower() == "matardepå"]
-    export_rows = normal_rows + matardepo_rows
+    matardepo_rows = ctx["matardepo_rows"]
+    export_rows = rows + matardepo_rows
 
     export_df = pd.DataFrame(export_rows, columns=columns)
     for col in ["Kassa", "Kassa FI", "Position FI"]:
