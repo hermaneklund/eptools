@@ -1013,6 +1013,8 @@ async def mandat_add(request: Request):
     row[number_col] = number
     df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
     _save_mandat_table(df)
+    flags = {col: (1 if col in form else 0) for col in FLAG_COLUMNS}
+    _save_mandat_flags({number: flags})
     return RedirectResponse(request.headers.get("referer", "/mandat"), status_code=303)
 
 
@@ -3200,6 +3202,11 @@ def fixed_income_export(sort_by: str = "att_kopa"):
     export_rows = normal_rows + matardepo_rows
 
     export_df = pd.DataFrame(export_rows, columns=columns)
+    for col in ["Kassa", "Kassa FI", "Position FI"]:
+        if col in export_df.columns:
+            export_df[col] = pd.to_numeric(export_df[col], errors="coerce").round(0)
+    if "Att köpa" in export_df.columns:
+        export_df["Att köpa"] = pd.to_numeric(export_df["Att köpa"], errors="coerce").round(1)
     output = BytesIO()
     export_df.to_excel(output, index=False, sheet_name="FixedIncome")
     output.seek(0)
