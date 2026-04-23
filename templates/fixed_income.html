@@ -139,14 +139,14 @@
                   <tr class="section-row">
                     <td colspan="{{ columns|length }}">Matardepåer</td>
                   </tr>
-                  {% for row in rows if (row.get("Mandat","")|lower) == "matardepå" %}
+                  {% for row in matardepo_rows %}
                     <tr>
                       {% for col in columns %}
                         <td>
                           {% if col == "Kassa FI" %}
-                            {{ format_cell("Värde i SEK", row[col]) }}
+                            {{ format_cell("Värde i SEK", row.get(col)) }}
                           {% else %}
-                            {{ format_cell(col, row[col]) }}
+                            {{ format_cell(col, row.get(col)) }}
                           {% endif %}
                         </td>
                       {% endfor %}
