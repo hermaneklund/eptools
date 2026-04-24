@@ -4544,6 +4544,75 @@ def model_dashboard(request: Request):
     )
 
 
+@app.get("/dashboard/export")
+def dashboard_export():
+    model_specs = [
+        {
+            "title": "Core Sverige",
+            "actions_tables": ["coresvactions", "CoreSvActions"],
+            "data_tables": ["coresvdata", "CoreSvData"],
+            "model_col": "CoreSverige",
+            "index_cols": ["OMXS30", "OMXSPI"],
+        },
+        {
+            "title": "Edge",
+            "actions_tables": ["edgeactions", "EdgeActions"],
+            "data_tables": ["edgedata", "EdgeData"],
+            "model_col": "Edge",
+            "index_cols": ["OMXSSCPI", "FirstNorth"],
+        },
+        {
+            "title": "Core Världen",
+            "actions_tables": ["corevactions", "CoreVActions"],
+            "data_tables": ["corevdata", "CoreVData"],
+            "model_col": "CoreVärlden",
+            "index_cols": ["MSCI World SEK"],
+        },
+        {
+            "title": "Alternativa",
+            "actions_tables": ["altactions", "AltActions"],
+            "data_tables": ["altdata", "AltData"],
+            "model_col": "Alternativa",
+            "index_cols": ["RLY SEK"],
+        },
+    ]
+
+    ytd_export = []
+    holdings_export = []
+
+    for spec in model_specs:
+        actions_df = _load_first_existing_table(spec["actions_tables"])
+        data_df = _load_first_existing_table(spec["data_tables"])
+        holdings_rows = _build_model_holdings_rows(actions_df)
+
+        ytd_export.append({
+            "Modell": spec["title"],
+            "E&P Förvaltning YTD": _compute_series_ytd(data_df, spec["model_col"]),
+            spec["index_cols"][0] + " YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
+            (spec["index_cols"][1] + " YTD") if len(spec["index_cols"]) > 1 else "Index 2 YTD": _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None,
+        })
+
+        for row in holdings_rows:
+            holdings_export.append({
+                "Modell": spec["title"],
+                "Innehav": row.get("Holding", ""),
+                "Vikt": _to_float(row.get("Vikt")) or 0,
+                "Utv.": _to_float(row.get("Utv")),
+            })
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        pd.DataFrame(ytd_export).to_excel(writer, index=False, sheet_name="Performance YTD")
+        pd.DataFrame(holdings_export).to_excel(writer, index=False, sheet_name="Innehav")
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=dashboard.xlsx"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
+
+
 @app.get("/core-sverige", response_class=HTMLResponse)
 def core_sverige(request: Request, ticker: str = ""):
     price = None
