@@ -3085,11 +3085,12 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
             kund_key = str(c["mandat_row"].get("Kund", "")).strip()
             matardepo_kassa_by_kund[kund_key] = c["kassa_fi"]
             matardepo_holdings_by_kund[kund_key] = c["holdings_total"]
-            matardepo_rows.append({
-                "Number": c["number"],
-                "Kund": c["mandat_row"].get("Kund", ""),
-                "Kassa FI": c["kassa_fi"],
-            })
+            if c["kassa_fi"] > 25000:
+                matardepo_rows.append({
+                    "Number": c["number"],
+                    "Kund": c["mandat_row"].get("Kund", ""),
+                    "Kassa FI": c["kassa_fi"],
+                })
 
     # Pass 2: filter using combined kassa_fi and holdings_total
     rows = []
