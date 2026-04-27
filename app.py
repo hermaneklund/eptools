@@ -3200,8 +3200,13 @@ def fixed_income_export(sort_by: str = "att_kopa"):
     matardepo_rows = ctx["matardepo_rows"]
     export_rows = rows + matardepo_rows
 
-    export_df = pd.DataFrame(export_rows, columns=columns)
-    for col in ["Kassa", "Kassa FI", "Position FI"]:
+    export_columns = []
+    for col in columns:
+        export_columns.append(col)
+        if col == "Kassa FI":
+            export_columns.append("Kassa FI Matardepå")
+    export_df = pd.DataFrame(export_rows, columns=export_columns)
+    for col in ["Kassa", "Kassa FI", "Kassa FI Matardepå", "Position FI"]:
         if col in export_df.columns:
             export_df[col] = pd.to_numeric(export_df[col], errors="coerce").round(0)
     if "Att köpa" in export_df.columns:
