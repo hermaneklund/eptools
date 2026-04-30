@@ -160,6 +160,7 @@
               <div class="chart-card" style="margin:24px 0; width:100%;">
                 <div id="coresv-performance-chart" style="height:360px; width:100%;"></div>
                 <div class="chart-controls minimalist">
+                  <button class="range-button" type="button" data-range="qtd">QTD</button>
                   <button class="range-button" type="button" data-range="ytd">YTD</button>
                   <button class="range-button is-active" type="button" data-range="1y">1Y</button>
                   <button class="range-button" type="button" data-range="2y">2Y</button>
@@ -453,6 +454,10 @@
 
         const getRangeStart = (range) => {
           if (range === "all") return null;
+          if (range === "qtd") {
+            const q = Math.floor(latestDate.getMonth() / 3);
+            return new Date(latestDate.getFullYear(), q * 3, 1);
+          }
           if (range === "ytd") return new Date(latestDate.getFullYear(), 0, 1);
           const years = parseInt(range.replace("y", ""), 10);
           const start = new Date(latestDate);
