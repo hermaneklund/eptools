@@ -1449,7 +1449,7 @@ body {
 
 .ombalansering-wrap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -1469,6 +1469,24 @@ body {
 
 .strategy-card {
   margin-top: 18px;
+}
+
+.dashboard-under-modules {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0 8px;
+}
+
+.dashboard-strategy-section {
+  margin: 0;
+  max-width: 280px;
+  width: 280px;
+}
+
+.dashboard-strategy-list {
+  grid-template-columns: 1fr;
 }
 
 .strategy-header {
@@ -1839,10 +1857,10 @@ body {
 
 .dashboard-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 8px;
-  margin: 12px 0 8px;
+  margin: 0;
 }
 
 .dashboard-actions form {
@@ -1963,6 +1981,18 @@ body {
 @media (max-width: 980px) {
   .model-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+  .dashboard-under-modules {
+    flex-direction: column;
+  }
+  .dashboard-strategy-section {
+    width: 100%;
+    max-width: 280px;
+  }
+  .dashboard-actions {
+    align-self: stretch;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
   .dashboard-perf-table .perf-label-col {
     width: 45%;

@@ -1433,6 +1433,19 @@ def investeringspolicy():
     return FileResponse(BASE_DIR / "templates" / "investeringspolicy.html", media_type="text/html")
 
 
+def _load_strategi_items() -> list[dict[str, object]]:
+    strategi_items = []
+    try:
+        strategi_df = _load_strategi()
+        if not strategi_df.empty:
+            strategi_row = strategi_df.iloc[0].where(pd.notna(strategi_df.iloc[0]), "")
+            for col in strategi_df.columns:
+                strategi_items.append({"label": str(col).strip(), "value": strategi_row.get(col, "")})
+    except Exception:
+        strategi_items = []
+    return strategi_items
+
+
 @app.post("/models-update")
 def models_update(request: Request):
     _update_all_models_for_today()
@@ -1460,7 +1473,7 @@ async def strategi_update(request: Request):
 
     total = sum(values) if values else 0
     if not valid or abs(total - 1) > 0.001:
-        referer = request.headers.get("referer", "/ombalansering")
+        referer = request.headers.get("referer", "/dashboard")
         return RedirectResponse(referer, status_code=303)
 
     if data:
@@ -1566,7 +1579,7 @@ async def strategi_update(request: Request):
                     )
             _save_mandat_dyn(dyn_rows)
 
-    referer = request.headers.get("referer", "/ombalansering")
+    referer = request.headers.get("referer", "/dashboard")
     return RedirectResponse(referer, status_code=303)
 
 
@@ -3599,15 +3612,6 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
     }
     selected = modul_map.get(modul_key)
     rows = []
-    strategi_items = []
-    try:
-        strategi_df = _load_strategi()
-        if not strategi_df.empty:
-            strategi_row = strategi_df.iloc[0].where(pd.notna(strategi_df.iloc[0]), "")
-            for col in strategi_df.columns:
-                strategi_items.append({"label": str(col).strip(), "value": strategi_row.get(col, "")})
-    except Exception:
-        strategi_items = []
     # Merge flags and dynamic overrides into mandat (shared setup for all modules)
     if not flags_df.empty and "number" in flags_df.columns:
         number_col = "Number" if "Number" in mandat.columns else "Nummer"
@@ -3765,7 +3769,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                 position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
                 vs_val = holding_value - position_value
                 kurs_val = kurs_sek_by_holding.get(holding_norm)
-                if kurs_val:
+                if pd.notna(vs_val) and kurs_val is not None and pd.notna(kurs_val) and kurs_val != 0:
                     antal_raw = abs(vs_val) / kurs_val
                     antal_rebal = (int(antal_raw) // 2) * 2
                 else:
@@ -3811,7 +3815,6 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
             "selected_modul": modul_key,
             "selected_label": selected[1] if selected else "",
             "format_cell": format_cell,
-            "strategi_items": strategi_items,
         },
     )
 
@@ -3952,7 +3955,11 @@ def ombalansering_export(modul: str = ""):
                 position_value = holdings_total * model_value * weight if holdings_total and model_value > 0 else 0
                 vs_val = holding_value - position_value
                 kurs_val = kurs_sek_by_holding.get(holding_norm)
-                antal_rebal = (int(abs(vs_val) / kurs_val) // 2) * 2 if kurs_val else None
+                antal_rebal = (
+                    (int(abs(vs_val) / kurs_val) // 2) * 2
+                    if pd.notna(vs_val) and kurs_val is not None and pd.notna(kurs_val) and kurs_val != 0
+                    else None
+                )
                 rows.append({
                     "Number": number,
                     "Kund": info.get("Kund", ""),
@@ -4537,6 +4544,8 @@ def model_dashboard(request: Request):
             h = str(row.get("Holding", "")).strip()
             row["DisplayHolding"] = shortname_by_modelname.get(h.casefold(), h)
 
+    strategi_items = _load_strategi_items()
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -4544,6 +4553,7 @@ def model_dashboard(request: Request):
             "request": request,
             "model_tables": model_tables,
             "ytd_rows": ytd_rows,
+            "strategi_items": strategi_items,
             "format_cell": format_cell,
             "format_percent_1": format_percent_1,
         },

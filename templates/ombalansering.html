@@ -140,55 +140,8 @@
             <p class="empty"></p>
           {% endif %}
         </section>
-        <aside class="small-table strategy-card">
-          <div class="strategy-header">
-            <div class="small-table-title">Strategisk Allokering</div>
-            <button class="strategy-edit" type="button" id="strategy-open">Ändra</button>
-          </div>
-          {% if strategi_items and strategi_items|length > 0 %}
-            <ul class="strategy-list">
-              {% for item in strategi_items %}
-                <li>
-                  <span>{{ item.label }}</span>
-                  <strong>{{ format_cell("Alt", item.value) }}</strong>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="empty">Inga data.</p>
-          {% endif %}
-        </aside>
       </div>
     </main>
-
-    <div class="modal-backdrop" id="strategy-backdrop"></div>
-    <div class="modal-card" id="strategy-modal" role="dialog" aria-modal="true" aria-hidden="true">
-      <div class="modal-header">
-        <h3>Strategisk Allokering</h3>
-        <button class="modal-close" type="button" id="strategy-close">Stäng</button>
-      </div>
-      {% if strategi_items and strategi_items|length > 0 %}
-        <form method="post" action="/strategi-update" class="strategy-form">
-          <ul>
-            {% for item in strategi_items %}
-              <li>
-                <span>{{ item.label }}</span>
-                <input type="hidden" name="key_{{ loop.index0 }}" value="{{ item.label }}" />
-                <input
-                  type="text"
-                  name="val_{{ loop.index0 }}"
-                  value="{{ item.value }}"
-                  inputmode="decimal"
-                />
-              </li>
-            {% endfor %}
-          </ul>
-          <button type="submit" class="strategy-save">Spara</button>
-        </form>
-      {% else %}
-        <p class="empty">Inga data.</p>
-      {% endif %}
-    </div>
 
     <script>
       const sidebar = document.getElementById("sidebar");
@@ -224,35 +177,6 @@
         });
       });
 
-      const strategyOpen = document.getElementById("strategy-open");
-      const strategyModal = document.getElementById("strategy-modal");
-      const strategyBackdrop = document.getElementById("strategy-backdrop");
-      const strategyClose = document.getElementById("strategy-close");
-
-      const openStrategy = () => {
-        if (!strategyModal) return;
-        strategyModal.classList.add("open");
-        strategyBackdrop.classList.add("show");
-        strategyModal.setAttribute("aria-hidden", "false");
-      };
-
-      const closeStrategy = () => {
-        if (!strategyModal) return;
-        strategyModal.classList.remove("open");
-        strategyBackdrop.classList.remove("show");
-        strategyModal.setAttribute("aria-hidden", "true");
-      };
-
-      if (strategyOpen) {
-        strategyOpen.addEventListener("click", openStrategy);
-      }
-      if (strategyClose) {
-        strategyClose.addEventListener("click", closeStrategy);
-      }
-      if (strategyBackdrop) {
-        strategyBackdrop.addEventListener("click", closeStrategy);
-      }
     </script>
   </body>
 </html>
-
