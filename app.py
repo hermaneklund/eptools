@@ -3995,6 +3995,7 @@ def ombalansering_export(modul: str = ""):
         columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell", "Cash balance", "Förvaltningskommentar"]
     filename = "ombalansering.xlsx" if selected else "ombalansering_alla.xlsx"
     df = pd.DataFrame(rows, columns=columns)
+    df["Number"] = pd.to_numeric(df["Number"], errors="coerce").astype("Int64")
     output = BytesIO()
     df.to_excel(output, index=False, sheet_name="Ombalansering")
     output.seek(0)
