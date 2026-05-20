@@ -3770,8 +3770,7 @@ def ombalansering(request: Request, modul: str = "", q: str = ""):
                 vs_val = holding_value - position_value
                 kurs_val = kurs_sek_by_holding.get(holding_norm)
                 if pd.notna(vs_val) and kurs_val is not None and pd.notna(kurs_val) and kurs_val != 0:
-                    antal_raw = abs(vs_val) / kurs_val
-                    antal_rebal = (int(antal_raw) // 2) * 2
+                    antal_rebal = int(abs(vs_val) / kurs_val)
                 else:
                     antal_rebal = None
                 rows.append(
@@ -3874,6 +3873,7 @@ def ombalansering_export(modul: str = ""):
     dyn_col_map = {"CS": "dynCS", "CV": "dynCV", "Ed": "dynEd", "Alt": "dynAlt"}
     modul_series = None
     totals_by_number = {}
+    kassa_by_number = {}
     if "Short Name" in detaljerat.columns:
         modul_series = detaljerat["Short Name"].apply(
             lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
@@ -3887,6 +3887,16 @@ def ombalansering_export(modul: str = ""):
             full_base = full_base * pd.to_numeric(full_rates, errors="coerce").fillna(1.0)
         total_numbers = detaljerat["Number"].apply(_normalize_number_value)
         totals_by_number = pd.DataFrame({"Number": total_numbers, "Value": full_base}).groupby("Number")["Value"].sum().to_dict()
+        tillgang = detaljerat["Short Name"].apply(
+            lambda s: taggar_map.get(_normalize_key(s), {}).get("Tillgångsslag", "")
+        ).astype(str).str.strip()
+        kassa_by_number = (
+            pd.DataFrame({"Number": total_numbers, "Value": full_base, "Tillgang": tillgang})
+            .loc[lambda d: d["Tillgang"].str.lower() == "valuta"]
+            .groupby("Number")["Value"]
+            .sum()
+            .to_dict()
+        )
 
     modules_to_process = [selected] if selected else list(modul_map.values())
     show_modul_col = not bool(selected)
@@ -3911,8 +3921,11 @@ def ombalansering_export(modul: str = ""):
             rates = detail_subset["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
             base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
         detail_subset["Värde (sek)"] = base_value
+        mandate_cols = ["Kund", "Mandat", "__model_value"]
+        if "Förvaltningsnotering" in subset.columns:
+            mandate_cols.append("Förvaltningsnotering")
         mandate_map = (
-            subset.set_index(subset["Number"].apply(_normalize_number_value))[["Kund", "Mandat", "__model_value"]]
+            subset.set_index(subset["Number"].apply(_normalize_number_value))[mandate_cols]
             .to_dict(orient="index")
         )
         model_weight_by_holding = _model_weights_for_modul(mod_label, taggar_df)
@@ -3956,7 +3969,7 @@ def ombalansering_export(modul: str = ""):
                 vs_val = holding_value - position_value
                 kurs_val = kurs_sek_by_holding.get(holding_norm)
                 antal_rebal = (
-                    (int(abs(vs_val) / kurs_val) // 2) * 2
+                    int(abs(vs_val) / kurs_val)
                     if pd.notna(vs_val) and kurs_val is not None and pd.notna(kurs_val) and kurs_val != 0
                     else None
                 )
@@ -3971,13 +3984,15 @@ def ombalansering_export(modul: str = ""):
                     "Värde (sek)": holding_value,
                     "Modell": position_value,
                     "vs modell": vs_val,
+                    "Cash balance": kassa_by_number.get(number, 0),
+                    "Förvaltningskommentar": info.get("Förvaltningsnotering", ""),
                 })
 
     rows = [r for r in rows if abs(_to_float(r.get("vs modell", 0)) or 0) >= 7000]
     if show_modul_col:
-        columns = ["Number", "Kund", "Köp/Sälj", "Modul", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell"]
+        columns = ["Number", "Kund", "Köp/Sälj", "Modul", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell", "Cash balance", "Förvaltningskommentar"]
     else:
-        columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell"]
+        columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "Antal", "Kurs", "Värde (sek)", "Modell", "vs modell", "Cash balance", "Förvaltningskommentar"]
     filename = "ombalansering.xlsx" if selected else "ombalansering_alla.xlsx"
     df = pd.DataFrame(rows, columns=columns)
     output = BytesIO()
