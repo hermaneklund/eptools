@@ -3219,6 +3219,8 @@ def fixed_income_export(sort_by: str = "att_kopa"):
         if col == "Kassa FI":
             export_columns.append("Kassa FI Matardepå")
     export_df = pd.DataFrame(export_rows, columns=export_columns)
+    if "Number" in export_df.columns:
+        export_df["Number"] = pd.to_numeric(export_df["Number"], errors="coerce").astype("Int64")
     for col in ["Kassa", "Kassa FI", "Kassa FI Matardepå", "Position FI"]:
         if col in export_df.columns:
             export_df[col] = pd.to_numeric(export_df[col], errors="coerce").round(0)
