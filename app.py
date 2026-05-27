@@ -281,6 +281,61 @@ def _save_mandat_dyn(rows: list[dict]) -> None:
         df.to_sql("mandat_dyn", conn, if_exists="replace", index=False)
 
 
+def _compute_dyn_weights(row: dict, strategi_vals: dict) -> dict:
+    """Compute dynamic allocation weights for one Mandat row.
+
+    When dynamisk == 1:
+      - Active module (flag=1) with a non-zero static weight → locked to that value.
+      - Active module (flag=1) with zero/empty static weight → floats proportionally
+        based on the global strategy weights for the remaining budget.
+      - Inactive module (flag=0) → 0.
+
+    Returns dict with keys dynCS, dynCV, dynEd, dynAlt.
+    """
+    zero = {"dynCS": 0.0, "dynCV": 0.0, "dynEd": 0.0, "dynAlt": 0.0}
+    if (_to_float(row.get("dynamisk", 0)) or 0) != 1:
+        return zero
+
+    fi = _to_float(row.get("FI", 0)) or 0.0
+    ovr = _to_float(row.get("Övr", 0)) or 0.0
+    scale = 1.0 - fi - ovr
+
+    # (output_key, flag_col, static_col, strat_key)
+    module_defs = [
+        ("dynCS",  "coresv", "CS",  "coresv"),
+        ("dynCV",  "corevä", "CV",  "corevä"),
+        ("dynEd",  "edge",   "Ed",  "edge"),
+        ("dynAlt", "alts",   "Alt", "alts"),
+    ]
+
+    locked: dict = {}
+    floating: dict = {}
+
+    for out_key, flag_col, static_col, strat_key in module_defs:
+        if (_to_float(row.get(flag_col, 0)) or 0) != 1:
+            continue
+        static_val = _to_float(row.get(static_col, None)) or 0.0
+        if static_val:
+            locked[out_key] = static_val
+        else:
+            floating[out_key] = strategi_vals.get(strat_key, 0.0) or 0.0
+
+    locked_budget = sum(locked.values())
+    floating_budget = max(scale - locked_budget, 0.0)
+    floating_denom = sum(floating.values()) or 0.0
+
+    result: dict = {}
+    for out_key, _, _, _ in module_defs:
+        if out_key in locked:
+            result[out_key] = locked[out_key]
+        elif out_key in floating:
+            result[out_key] = (floating[out_key] / floating_denom * floating_budget) if floating_denom else 0.0
+        else:
+            result[out_key] = 0.0
+
+    return result
+
+
 def _load_mandat_table() -> pd.DataFrame:
     df = _load_sheet_from_db("Mandat")
     return _ensure_mandat_schema(df, persist=not df.empty)
@@ -1522,45 +1577,9 @@ async def strategi_update(request: Request):
                 "alts": _to_float(data.get("Alternativa", 0)) or 0,
             }
 
-            coresv_series = pd.to_numeric(mandat_df["coresv"], errors="coerce").fillna(0)
-            coreva_series = pd.to_numeric(mandat_df["corevä"], errors="coerce").fillna(0)
-            edge_series = pd.to_numeric(mandat_df["edge"], errors="coerce").fillna(0)
-            alts_series = pd.to_numeric(mandat_df["alts"], errors="coerce").fillna(0)
-            flags_sum = (
-                strategi_vals.get("coresv", 0) * coresv_series
-                + strategi_vals.get("corevä", 0) * coreva_series
-                + strategi_vals.get("edge", 0) * edge_series
-                + strategi_vals.get("alts", 0) * alts_series
-            )
-            fi_value = pd.to_numeric(mandat_df["FI"], errors="coerce").fillna(0) if "FI" in mandat_df.columns else 0
-            ovr_value = pd.to_numeric(mandat_df["Övr"], errors="coerce").fillna(0) if "Övr" in mandat_df.columns else 0
-            scale = 1 - fi_value - ovr_value
-            denom = flags_sum.replace(0, np.nan)
-
-            mandat_df["dynCS"] = (
-                (mandat_df["coresv"].astype(float).where(mandat_df["coresv"] == 1, 0) * strategi_vals.get("coresv", 0))
-                / denom
-                * scale
-            )
-            mandat_df["dynCV"] = (
-                (mandat_df["corevä"].astype(float).where(mandat_df["corevä"] == 1, 0) * strategi_vals.get("corevä", 0))
-                / denom
-                * scale
-            )
-            mandat_df["dynEd"] = (
-                (mandat_df["edge"].astype(float).where(mandat_df["edge"] == 1, 0) * strategi_vals.get("edge", 0))
-                / denom
-                * scale
-            )
-            mandat_df["dynAlt"] = (
-                (mandat_df["alts"].astype(float).where(mandat_df["alts"] == 1, 0) * strategi_vals.get("alts", 0))
-                / denom
-                * scale
-            )
-
-            mandat_df.loc[mandat_df["dynamisk"] != 1, ["dynCS", "dynCV", "dynEd", "dynAlt"]] = 0.0
-            for col in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
-                mandat_df[col] = pd.to_numeric(mandat_df[col], errors="coerce").fillna(0)
+            for col in ["FI", "CS", "CV", "Ed", "Alt", "Övr"]:
+                if col not in mandat_df.columns:
+                    mandat_df[col] = 0
 
             dyn_rows = []
             if number_col in mandat_df.columns:
@@ -1568,15 +1587,8 @@ async def strategi_update(request: Request):
                     number_val = str(row.get(number_col, "")).strip()
                     if not number_val:
                         continue
-                    dyn_rows.append(
-                        {
-                            "number": number_val,
-                            "dynCS": row.get("dynCS", 0),
-                            "dynCV": row.get("dynCV", 0),
-                            "dynEd": row.get("dynEd", 0),
-                            "dynAlt": row.get("dynAlt", 0),
-                        }
-                    )
+                    weights = _compute_dyn_weights(row.to_dict(), strategi_vals)
+                    dyn_rows.append({"number": number_val, **weights})
             _save_mandat_dyn(dyn_rows)
 
     referer = request.headers.get("referer", "/dashboard")
@@ -4313,78 +4325,21 @@ def mandat_page(request: Request, q: str = "", sort_by: str = "", compliance: st
                 df[col] = df[dyn_col].fillna(df[col])
                 df.drop(columns=[dyn_col], inplace=True)
     if "dynamisk" in df.columns:
-        for col in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-        coresv_series = pd.to_numeric(df["coresv"], errors="coerce").fillna(0) if "coresv" in df.columns else 0
-        coreva_series = pd.to_numeric(df["corevä"], errors="coerce").fillna(0) if "corevä" in df.columns else 0
-        edge_series = pd.to_numeric(df["edge"], errors="coerce").fillna(0) if "edge" in df.columns else 0
-        alts_series = pd.to_numeric(df["alts"], errors="coerce").fillna(0) if "alts" in df.columns else 0
-        flags_sum = (
-            strategi_vals.get("coresv", 0) * coresv_series
-            + strategi_vals.get("corevä", 0) * coreva_series
-            + strategi_vals.get("edge", 0) * edge_series
-            + strategi_vals.get("alts", 0) * alts_series
-        )
-        fi_value = (
-            pd.to_numeric(df["FI"], errors="coerce").fillna(0)
-            if "FI" in df.columns
-            else 0
-        )
-        ovr_value = (
-            pd.to_numeric(df["Övr"], errors="coerce").fillna(0)
-            if "Övr" in df.columns
-            else 0
-        )
-        scale = 1 - fi_value - ovr_value
-        dyn_off = df["dynamisk"] != 1
-        for col in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
-            df.loc[dyn_off, col] = 0.0
-        for col in ["CS", "CV", "Ed", "Alt"]:
-            if col in df.columns:
-                df.loc[df["dynamisk"] == 1, col] = 0
-        if "coresv" in df.columns:
-            df["dynCS"] = df["dynCS"].where(
-                df["dynamisk"] != 1,
-                df["coresv"].where(df["coresv"] == 1, 0)
-                * (strategi_vals.get("coresv", 0) / flags_sum.replace(0, pd.NA))
-                * scale,
-            )
-        if "corevä" in df.columns:
-            df["dynCV"] = df["dynCV"].where(
-                df["dynamisk"] != 1,
-                df["corevä"].where(df["corevä"] == 1, 0)
-                * (strategi_vals.get("corevä", 0) / flags_sum.replace(0, pd.NA))
-                * scale,
-            )
-        if "edge" in df.columns:
-            df["dynEd"] = df["dynEd"].where(
-                df["dynamisk"] != 1,
-                df["edge"].where(df["edge"] == 1, 0)
-                * (strategi_vals.get("edge", 0) / flags_sum.replace(0, pd.NA))
-                * scale,
-            )
-        if "alts" in df.columns:
-            df["dynAlt"] = df["dynAlt"].where(
-                df["dynamisk"] != 1,
-                df["alts"].where(df["alts"] == 1, 0)
-                * (strategi_vals.get("alts", 0) / flags_sum.replace(0, pd.NA))
-                * scale,
-            )
+        for col in ["FI", "CS", "CV", "Ed", "Alt", "Övr"]:
+            if col not in df.columns:
+                df[col] = 0
         dyn_rows = []
         if number_col in df.columns:
             for _, row in df.iterrows():
                 number_val = str(row.get(number_col, "")).strip()
                 if not number_val:
                     continue
-                dyn_rows.append(
-                    {
-                        "number": number_val,
-                        "dynCS": row.get("dynCS", ""),
-                        "dynCV": row.get("dynCV", ""),
-                        "dynEd": row.get("dynEd", ""),
-                        "dynAlt": row.get("dynAlt", ""),
-                    }
-                )
+                weights = _compute_dyn_weights(row.to_dict(), strategi_vals)
+                df.loc[row.name, "dynCS"] = weights["dynCS"]
+                df.loc[row.name, "dynCV"] = weights["dynCV"]
+                df.loc[row.name, "dynEd"] = weights["dynEd"]
+                df.loc[row.name, "dynAlt"] = weights["dynAlt"]
+                dyn_rows.append({"number": number_val, **weights})
         _save_mandat_dyn(dyn_rows)
     number_suggestions = []
     if number_col in df.columns:
