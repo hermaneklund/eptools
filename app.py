@@ -2251,7 +2251,9 @@ def _normalize_number_value(value) -> str:
 
 
 def _coerce_cell_for_column(df: pd.DataFrame, col: str, value):
-    if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+    is_numeric = col in df.columns and pd.api.types.is_numeric_dtype(df[col])
+    is_allocation = col in MANDAT_ALLOCATION_COLUMNS
+    if is_numeric or is_allocation:
         num = _to_float(value)
         return num if num is not None else pd.NA
     return value

@@ -435,6 +435,17 @@
             }
           });
         }
+
+        inputs.forEach((input) => {
+          if (input.type !== "checkbox") {
+            input.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                saveBtn && saveBtn.click();
+              }
+            });
+          }
+        });
       });
 
       const restoreTop = sessionStorage.getItem("mandatScrollTop");
