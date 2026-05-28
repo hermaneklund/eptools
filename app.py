@@ -2233,7 +2233,8 @@ def _to_float(value) -> float | None:
             cleaned = cleaned.replace(",", ".")
             num = float(cleaned)
             return num / 100 if is_percent else num
-        return float(value)
+        result = float(value)
+        return None if result != result else result
     except (TypeError, ValueError):
         return None
 
