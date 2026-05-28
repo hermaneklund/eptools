@@ -285,10 +285,10 @@ def _compute_dyn_weights(row: dict, strategi_vals: dict) -> dict:
     """Compute dynamic allocation weights for one Mandat row.
 
     When dynamisk == 1:
-      - Active module (flag=1) with a non-zero static weight → locked to that value.
-      - Active module (flag=1) with zero/empty static weight → floats proportionally
+      - Non-zero static weight → locked to that value (regardless of flag).
+      - Zero/empty static weight AND flag=1 → floats proportionally
         based on the global strategy weights for the remaining budget.
-      - Inactive module (flag=0) → 0.
+      - Zero/empty static weight AND flag=0 → 0.
 
     Returns dict with keys dynCS, dynCV, dynEd, dynAlt.
     """
@@ -312,12 +312,11 @@ def _compute_dyn_weights(row: dict, strategi_vals: dict) -> dict:
     floating: dict = {}
 
     for out_key, flag_col, static_col, strat_key in module_defs:
-        if (_to_float(row.get(flag_col, 0)) or 0) != 1:
-            continue
         static_val = _to_float(row.get(static_col, None)) or 0.0
+        flag_on = (_to_float(row.get(flag_col, 0)) or 0) == 1
         if static_val:
             locked[out_key] = static_val
-        else:
+        elif flag_on:
             floating[out_key] = strategi_vals.get(strat_key, 0.0) or 0.0
 
     locked_budget = sum(locked.values())
