@@ -1025,6 +1025,9 @@ async def mandat_save_row(request: Request):
     for col in MANDAT_BOOL_COLUMNS:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    for col in MANDAT_ALLOCATION_COLUMNS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # Update main Mandat table fields
     for col in df.columns:
