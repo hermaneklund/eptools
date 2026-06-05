@@ -458,7 +458,7 @@
             const q = Math.floor(latestDate.getMonth() / 3);
             return new Date(latestDate.getFullYear(), q * 3, 0);
           }
-          if (range === "ytd") return new Date(latestDate.getFullYear(), 0, 1);
+          if (range === "ytd") return new Date(latestDate.getFullYear(), 0, 0);
           const years = parseInt(range.replace("y", ""), 10);
           const start = new Date(latestDate);
           start.setFullYear(start.getFullYear() - years);
