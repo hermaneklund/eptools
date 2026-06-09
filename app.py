@@ -3586,7 +3586,13 @@ def uppbyggnader(request: Request):
             }
         )
 
-    rows = sorted(rows, key=lambda r: (_to_float(r.get("Kassa", 0)) or 0) / (_to_float(r.get("Värde", 1)) or 1), reverse=True)
+    rows = sorted(
+        rows,
+        key=lambda r: (
+            -((_to_float(r.get("Kassa", 0)) or 0) / (_to_float(r.get("Värde", 1)) or 1)),
+            _to_float(r.get("Number", 0)) or 0,
+        ),
+    )
     columns = ["Number", "Kund", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
     return templates.TemplateResponse(
 
