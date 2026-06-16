@@ -3573,17 +3573,20 @@ def uppbyggnader(request: Request):
             "Ed_under": targets["Ed"] > 0 and shares["Ed"] < (0.7 * targets["Ed"]),
         }
 
+        forv_raw = mrow.get("Förvaltningsnotering", "")
+        forv_str = "" if pd.isna(forv_raw) else str(forv_raw).strip()
         rows.append(
             {
                 "Number": number,
                 "Kund": str(mrow.get(kund_col, "")).strip() if kund_col else "",
-                "Förvaltningsnotering": str(mrow.get("Förvaltningsnotering", "") or "").strip(),
+                "Förvaltningsnotering": forv_str,
                 "Alt": shares["Alt"],
                 "CS": shares["CS"],
                 "CV": shares["CV"],
                 "Ed": shares["Ed"],
                 "Kassa": valuta_total,
                 "Värde": holdings_total,
+                "is_matardepo": is_matardepo,
                 **under_flags,
             }
         )
@@ -3591,6 +3594,7 @@ def uppbyggnader(request: Request):
     rows = sorted(
         rows,
         key=lambda r: (
+            1 if r.get("is_matardepo") else 0,
             -((_to_float(r.get("Kassa", 0)) or 0) / (_to_float(r.get("Värde", 1)) or 1)),
             _to_float(r.get("Number", 0)) or 0,
         ),

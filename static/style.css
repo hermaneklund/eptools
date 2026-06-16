@@ -1742,6 +1742,10 @@ body {
   margin: 6px 0 10px auto;
 }
 
+.fixed-income-table th {
+  background: #ffffff;
+}
+
 .table-wrap {
   overflow: visible;
   max-height: none;
@@ -1955,6 +1959,17 @@ body {
 .dashboard-num-neg {
   color: #b91c1c;
   font-weight: 600;
+}
+
+.matardepo-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 0.78em;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
 .underbuilt-pill {
