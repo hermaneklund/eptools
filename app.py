@@ -3556,11 +3556,12 @@ def uppbyggnader(request: Request):
             "Ed": _to_float(mrow.get("dynEd" if is_dynamic else "Ed", 0)) or 0.0,
         }
 
+        is_matardepo = str(mrow.get("Mandat", "")).strip().lower() == "matardepå"
         is_underbuilt = any(
             targets[k] > 0 and shares[k] < (0.7 * targets[k])
             for k in ["Alt", "CS", "CV", "Ed"]
         )
-        if not is_underbuilt:
+        if not is_underbuilt and not (is_matardepo and holdings_total > 500_000):
             continue
         if holdings_total <= 0:
             continue
@@ -3576,6 +3577,7 @@ def uppbyggnader(request: Request):
             {
                 "Number": number,
                 "Kund": str(mrow.get(kund_col, "")).strip() if kund_col else "",
+                "Förvaltningsnotering": str(mrow.get("Förvaltningsnotering", "") or "").strip(),
                 "Alt": shares["Alt"],
                 "CS": shares["CS"],
                 "CV": shares["CV"],
@@ -3593,7 +3595,7 @@ def uppbyggnader(request: Request):
             _to_float(r.get("Number", 0)) or 0,
         ),
     )
-    columns = ["Number", "Kund", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
+    columns = ["Number", "Kund", "Förvaltningsnotering", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
     return templates.TemplateResponse(
 
         request=request,
