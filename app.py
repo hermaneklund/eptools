@@ -3602,6 +3602,7 @@ def uppbyggnader(request: Request):
         key=lambda r: (
             1 if r.get("is_matardepo") else 0,
             _to_float(r.get("Number", 0)) or 0,
+            str(r.get("mandat", "")).lower(),
         ),
     )
     columns = ["Number", "Kund", "Förvaltningsnotering", "FI", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]

@@ -1972,6 +1972,23 @@ body {
   vertical-align: middle;
 }
 
+.mandat-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.78em;
+  font-weight: 600;
+  vertical-align: middle;
+  background: #f1f5f9;
+  color: #475569;
+}
+.mandat-pill--ranta          { background: #dbeafe; color: #1e40af; }
+.mandat-pill--balanserad-defensiv  { background: #cffafe; color: #0e7490; }
+.mandat-pill--balanserad-offensiv  { background: #dcfce7; color: #15803d; }
+.mandat-pill--offensiv       { background: #ffedd5; color: #c2410c; }
+.mandat-pill--aktier         { background: #f3e8ff; color: #7c3aed; }
+.mandat-pill--matardepa      { background: #f1f5f9; color: #475569; }
+
 .underbuilt-pill {
   display: inline-block;
   padding: 2px 8px;

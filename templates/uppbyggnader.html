@@ -96,7 +96,12 @@
                       {% if col == "Number" %}
                         <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
                       {% elif col == "Kund" %}
-                        {{ row[col] }}{% if row.get("mandat") %} <span class="matardepo-pill">{{ row["mandat"] }}</span>{% endif %}
+                        {% if row.get("mandat") %}
+                          {% set mc = row["mandat"] | lower | replace("ä","a") | replace("å","a") | replace("ö","o") | replace(" ","-") %}
+                          {{ row[col] }} <span class="mandat-pill mandat-pill--{{ mc }}">{{ row["mandat"] }}</span>
+                        {% else %}
+                          {{ row[col] }}
+                        {% endif %}
                       {% elif col in ["FI", "Alt", "CS", "CV", "Ed"] %}
                         {% set under_key = col ~ "_under" %}
                         <span class="underbuilt-pill{% if row.get(under_key) %} is-under{% endif %}">
