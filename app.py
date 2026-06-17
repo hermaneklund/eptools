@@ -3503,7 +3503,7 @@ def uppbyggnader(request: Request):
             if pd.notna(kurs):
                 currency_map[key] = float(kurs)
 
-    for col in ["dynamisk", "CS", "CV", "Ed", "Alt", "dynCS", "dynCV", "dynEd", "dynAlt"]:
+    for col in ["dynamisk", "CS", "CV", "Ed", "Alt", "FI", "dynCS", "dynCV", "dynEd", "dynAlt"]:
         if col not in mandat.columns:
             mandat[col] = 0
 
@@ -3519,7 +3519,7 @@ def uppbyggnader(request: Request):
             else detaljerat.head(0)
         )
 
-        shares = {"Alt": 0.0, "CS": 0.0, "CV": 0.0, "Ed": 0.0}
+        shares = {"Alt": 0.0, "CS": 0.0, "CV": 0.0, "Ed": 0.0, "FI": 0.0}
         holdings_total = 0.0
         valuta_total = 0.0
         if not details.empty:
@@ -3547,6 +3547,8 @@ def uppbyggnader(request: Request):
                 lambda s: taggar_map.get(_normalize_key(s), {}).get("Tillgångsslag", "")
             ).astype(str).str.strip().str.lower()
             valuta_total = float(base_value.where(tillgang == "valuta").sum(skipna=True) or 0.0)
+            fi_value = float(base_value.where(modul == "fixed income").sum(skipna=True) or 0.0)
+            shares["FI"] = fi_value / holdings_total if holdings_total > 0 else 0.0
 
         is_dynamic = (_to_float(mrow.get("dynamisk", 0)) or 0) == 1
         targets = {
@@ -3554,16 +3556,17 @@ def uppbyggnader(request: Request):
             "CS": _to_float(mrow.get("dynCS" if is_dynamic else "CS", 0)) or 0.0,
             "CV": _to_float(mrow.get("dynCV" if is_dynamic else "CV", 0)) or 0.0,
             "Ed": _to_float(mrow.get("dynEd" if is_dynamic else "Ed", 0)) or 0.0,
+            "FI": _to_float(mrow.get("FI", 0)) or 0.0,
         }
 
         is_matardepo = str(mrow.get("Mandat", "")).strip().lower() == "matardepå"
         is_underbuilt = any(
             targets[k] > 0 and shares[k] < (0.7 * targets[k])
-            for k in ["Alt", "CS", "CV", "Ed"]
+            for k in ["Alt", "CS", "CV", "Ed", "FI"]
         )
-        if not is_underbuilt and not (is_matardepo and holdings_total > 500_000):
+        if not is_underbuilt and not is_matardepo:
             continue
-        if holdings_total <= 0:
+        if holdings_total <= 500_000:
             continue
 
         under_flags = {
@@ -3571,6 +3574,7 @@ def uppbyggnader(request: Request):
             "CS_under": targets["CS"] > 0 and shares["CS"] < (0.7 * targets["CS"]),
             "CV_under": targets["CV"] > 0 and shares["CV"] < (0.7 * targets["CV"]),
             "Ed_under": targets["Ed"] > 0 and shares["Ed"] < (0.7 * targets["Ed"]),
+            "FI_under": targets["FI"] > 0 and shares["FI"] < (0.7 * targets["FI"]),
         }
 
         forv_raw = mrow.get("Förvaltningsnotering", "")
@@ -3580,6 +3584,7 @@ def uppbyggnader(request: Request):
                 "Number": number,
                 "Kund": str(mrow.get(kund_col, "")).strip() if kund_col else "",
                 "Förvaltningsnotering": forv_str,
+                "FI": shares["FI"],
                 "Alt": shares["Alt"],
                 "CS": shares["CS"],
                 "CV": shares["CV"],
@@ -3599,7 +3604,7 @@ def uppbyggnader(request: Request):
             _to_float(r.get("Number", 0)) or 0,
         ),
     )
-    columns = ["Number", "Kund", "Förvaltningsnotering", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
+    columns = ["Number", "Kund", "Förvaltningsnotering", "FI", "Alt", "CS", "CV", "Ed", "Kassa", "Värde"]
     return templates.TemplateResponse(
 
         request=request,

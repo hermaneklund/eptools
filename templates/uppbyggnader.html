@@ -97,7 +97,7 @@
                         <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
                       {% elif col == "Kund" %}
                         {{ row[col] }}{% if row.get("is_matardepo") %} <span class="matardepo-pill">Matardepå</span>{% endif %}
-                      {% elif col in ["Alt", "CS", "CV", "Ed"] %}
+                      {% elif col in ["FI", "Alt", "CS", "CV", "Ed"] %}
                         {% set under_key = col ~ "_under" %}
                         <span class="underbuilt-pill{% if row.get(under_key) %} is-under{% endif %}">
                           {{ format_percent(row[col]) }}
