@@ -3592,6 +3592,7 @@ def uppbyggnader(request: Request):
                 "Kassa": valuta_total,
                 "Värde": holdings_total,
                 "is_matardepo": is_matardepo,
+                "mandat": str(mrow.get("Mandat", "")).strip(),
                 **under_flags,
             }
         )
@@ -3600,7 +3601,6 @@ def uppbyggnader(request: Request):
         rows,
         key=lambda r: (
             1 if r.get("is_matardepo") else 0,
-            -((_to_float(r.get("Kassa", 0)) or 0) / (_to_float(r.get("Värde", 1)) or 1)),
             _to_float(r.get("Number", 0)) or 0,
         ),
     )
