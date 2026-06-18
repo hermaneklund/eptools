@@ -2713,7 +2713,9 @@ def index(request: Request, q: str = ""):
                     )
                     fi_count = portfolio_modul_counts.get("fixed income", 0)
                     if fixed_income_total is not None and fi_count:
-                        position_value = fixed_income_total / fi_count
+                        _fim = fixed_income_model or 0
+                        _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
+                        position_value = fixed_income_total / _fi_divisor
                         post_by_modul["fixed income"] = max(50000, round(position_value / 50000) * 50000)
                     else:
                         post_by_modul["fixed income"] = 0
@@ -3091,7 +3093,9 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
                 .eq("fixed income")
                 .sum()
             )
-        position_fi = (fi_total / fi_count) if fi_count else 0.0
+        _fim = fixed_income_model or 0
+        _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
+        position_fi = fi_total / _fi_divisor if fi_total else 0.0
         fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
 
         all_computed.append({
