@@ -3559,7 +3559,8 @@ def ombalansering_fi(request: Request, q: str = ""):
             holding_values[holding] = holding_values.get(holding, 0.0) + float(val or 0.0)
 
         for holding, actual_value in holding_values.items():
-            vs_target = actual_value - fi_position_value
+            vs_target_raw = actual_value - fi_position_value
+            vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
             if abs(vs_target) > 0.20 * fi_position_value:
                 rows.append({
                     "Number": number,
@@ -3714,7 +3715,8 @@ def ombalansering_fi_export():
             holding_values[holding] = holding_values.get(holding, 0.0) + float(val or 0.0)
 
         for holding, actual_value in holding_values.items():
-            vs_target = actual_value - fi_position_value
+            vs_target_raw = actual_value - fi_position_value
+            vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
             if abs(vs_target) > 0.20 * fi_position_value:
                 rows.append({
                     "Number": number,
