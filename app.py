@@ -3139,7 +3139,7 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
         effective_holdings = c["holdings_total"] + matardepo_holdings_by_kund.get(kund_key, 0)
         if (
             c["fixed_income_model"] > c["fi_share"]
-            and effective_kassa_fi > 50000
+            and effective_kassa_fi >= 0.5 * c["fi_position_value"]
             and c["fixed_income_model"] >= 0.09
             and mandat_lower != "aktier"
             and effective_holdings >= 200000

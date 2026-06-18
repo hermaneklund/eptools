@@ -194,6 +194,22 @@
       </section>
     </main>
 
+    {% set bond_items = only_in_detaljerat | selectattr("instrument_type", "equalto", "Bond") | list %}
+    {% if bond_items %}
+    <div id="bond-alert-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:8px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,0.18);">
+        <h3 style="margin:0 0 12px;font-size:1.1rem;">Obligationer saknas i Taggar</h3>
+        <p style="margin:0 0 16px;font-size:0.9rem;color:#555;">Följande instrument har Instrument Type "Bond" i Detaljerat men saknas i Taggar:</p>
+        <ul style="margin:0 0 20px;padding-left:18px;font-size:0.9rem;">
+          {% for item in bond_items %}
+            <li>{{ item.name }}</li>
+          {% endfor %}
+        </ul>
+        <button onclick="document.getElementById('bond-alert-overlay').remove()" style="padding:8px 20px;border:none;border-radius:5px;background:#b00;color:#fff;cursor:pointer;font-size:0.9rem;">Stäng</button>
+      </div>
+    </div>
+    {% endif %}
+
     <script>
       const sidebar = document.getElementById("sidebar");
       const backdrop = document.getElementById("sidebar-backdrop");
