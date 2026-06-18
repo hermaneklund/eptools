@@ -3588,6 +3588,157 @@ def ombalansering_fi(request: Request, q: str = ""):
     )
 
 
+@app.get("/ombalansering-fi/export")
+def ombalansering_fi_export():
+    mandat = _load_sheet("Mandat")
+    detaljerat = _load_sheet("Detaljerat")
+    taggar_df = _load_sheet("Taggar")
+    flags_df = _load_mandat_flags()
+    dyn_df = _load_mandat_dyn()
+
+    taggar_map = {}
+    currency_map = {}
+    if "Short Name" in taggar_df.columns:
+        for _, row in taggar_df.iterrows():
+            key = _normalize_key(row.get("Short Name", ""))
+            if not key:
+                continue
+            taggar_map[key] = row.to_dict()
+            kurs = pd.to_numeric(row.get("Kurs", None), errors="coerce")
+            if pd.notna(kurs):
+                currency_map[key] = float(kurs)
+
+    number_col = "Number" if "Number" in mandat.columns else "Nummer"
+    if not mandat.empty and number_col not in mandat.columns:
+        mandat[number_col] = ""
+
+    if not flags_df.empty and "number" in flags_df.columns:
+        flags_merge = flags_df.rename(columns={"number": number_col}).copy()
+        flags_merge[number_col] = flags_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(flags_merge, on=number_col, how="left", suffixes=("", "_flag"))
+        merged_col = "dynamisk_flag"
+        if merged_col in mandat.columns:
+            if "dynamisk" in mandat.columns:
+                mandat["dynamisk"] = mandat[merged_col].fillna(mandat["dynamisk"])
+            else:
+                mandat["dynamisk"] = mandat[merged_col].fillna(0)
+            mandat.drop(columns=[merged_col], inplace=True)
+
+    if not dyn_df.empty and "number" in dyn_df.columns:
+        dyn_merge = dyn_df.rename(columns={"number": number_col}).copy()
+        dyn_merge[number_col] = dyn_merge[number_col].astype(str).str.strip()
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat = mandat.merge(dyn_merge, on=number_col, how="left", suffixes=("", "_dyn"))
+        for dcol in ["dynCS", "dynCV", "dynEd", "dynAlt"]:
+            dcol_dyn = f"{dcol}_dyn"
+            if dcol_dyn in mandat.columns:
+                if dcol in mandat.columns:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(mandat[dcol])
+                else:
+                    mandat[dcol] = mandat[dcol_dyn].fillna(0)
+                mandat.drop(columns=[dcol_dyn], inplace=True)
+
+    for col in ["dynamisk", "Alt", "CS", "CV", "Ed", "Övr", "dynAlt", "dynCS", "dynCV", "dynEd"]:
+        if col not in mandat.columns:
+            mandat[col] = 0
+
+    rows = []
+    for _, mrow in mandat.iterrows():
+        number = str(mrow.get(number_col, "")).strip()
+        if not number:
+            continue
+
+        details = (
+            detaljerat[detaljerat["Number"].astype(str).str.strip() == number]
+            if "Number" in detaljerat.columns
+            else detaljerat.head(0)
+        )
+        if details.empty:
+            continue
+
+        modul = details["Short Name"].apply(
+            lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
+        ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
+
+        counts = pd.to_numeric(details.get("Available Count", pd.Series([0] * len(details))), errors="coerce")
+        prices = pd.to_numeric(details.get("Price", pd.Series([0] * len(details))), errors="coerce")
+        base_value = counts * prices
+        base_value = base_value.where(modul != "fixed income", base_value / 100)
+        if "Currency" in details.columns:
+            rates = details["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+            base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
+
+        holdings_total = float(base_value.sum(skipna=True) or 0.0)
+        if not holdings_total:
+            continue
+
+        alt_total = float(base_value.where(modul == "alternativa").sum(skipna=True) or 0.0)
+        cs_total = float(base_value.where(modul == "core sverige").sum(skipna=True) or 0.0)
+        cv_total = float(base_value.where(modul == "core världen").sum(skipna=True) or 0.0)
+        edge_total = float(base_value.where(modul == "edge").sum(skipna=True) or 0.0)
+        ovrigt_total = float(base_value.where(modul == "övrigt").sum(skipna=True) or 0.0)
+        portfolio_other_sum = (alt_total + cs_total + cv_total + edge_total + ovrigt_total) / holdings_total
+
+        use_dyn = _to_float(mrow.get("dynamisk", 0)) == 1
+        model_sum = sum(
+            v for v in [
+                _to_float(mrow.get("dynAlt" if use_dyn else "Alt", "")),
+                _to_float(mrow.get("dynCS" if use_dyn else "CS", "")),
+                _to_float(mrow.get("dynCV" if use_dyn else "CV", "")),
+                _to_float(mrow.get("dynEd" if use_dyn else "Ed", "")),
+                _to_float(mrow.get("Övr", "")),
+            ]
+            if v is not None
+        )
+        fixed_income_model = max(0, 1 - max(model_sum, portfolio_other_sum))
+
+        _fim = fixed_income_model or 0
+        _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
+        fi_model_value = holdings_total * _fim
+        position_fi = fi_model_value / _fi_divisor if fi_model_value else 0.0
+        fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
+
+        if not fi_position_value:
+            continue
+
+        fi_mask = modul == "fixed income"
+        fi_details = details[fi_mask.values]
+        fi_values = base_value[fi_mask.values]
+
+        holding_values: dict[str, float] = {}
+        for (_, drow), val in zip(fi_details.iterrows(), fi_values):
+            holding = str(drow.get("Short Name", "")).strip()
+            if not holding:
+                continue
+            holding_values[holding] = holding_values.get(holding, 0.0) + float(val or 0.0)
+
+        for holding, actual_value in holding_values.items():
+            vs_target = actual_value - fi_position_value
+            if abs(vs_target) > 0.20 * fi_position_value:
+                rows.append({
+                    "Number": number,
+                    "Kund": str(mrow.get("Kund", "")).strip(),
+                    "Köp/Sälj": "Köp" if vs_target < 0 else "Sälj",
+                    "Innehav": holding,
+                    "vs target": vs_target,
+                })
+
+    rows.sort(key=lambda r: int(r["Number"]) if str(r.get("Number", "")).isdigit() else float("inf"))
+    columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "vs target"]
+    df = pd.DataFrame(rows, columns=columns)
+    df["Number"] = pd.to_numeric(df["Number"], errors="coerce").astype("Int64")
+    output = BytesIO()
+    df.to_excel(output, index=False, sheet_name="Ombalansering FI")
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=ombalansering_fi.xlsx"}
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
+
+
 @app.get("/uppbyggnader", response_class=HTMLResponse)
 def uppbyggnader(request: Request):
     mandat = _load_sheet("Mandat")
