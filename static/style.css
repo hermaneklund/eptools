@@ -1629,6 +1629,13 @@ body {
   box-shadow: 0 0 0 2px var(--ring);
 }
 
+.strategy-computed {
+  font-size: 12px;
+  text-align: right;
+  color: var(--muted, #888);
+  font-style: italic;
+}
+
 .strategy-save {
   margin-top: 12px;
   width: 100%;

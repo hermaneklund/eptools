@@ -194,13 +194,17 @@
             {% for item in strategi_items %}
               <li>
                 <span>{{ item.label }}</span>
-                <input type="hidden" name="key_{{ loop.index0 }}" value="{{ item.label }}" />
-                <input
-                  type="text"
-                  name="val_{{ loop.index0 }}"
-                  value="{{ item.value }}"
-                  inputmode="decimal"
-                />
+                {% if item.get('computed') %}
+                  <span class="strategy-computed">{{ format_cell("Alt", item.value) }}</span>
+                {% else %}
+                  <input type="hidden" name="key_{{ loop.index0 }}" value="{{ item.label }}" />
+                  <input
+                    type="text"
+                    name="val_{{ loop.index0 }}"
+                    value="{{ item.value }}"
+                    inputmode="decimal"
+                  />
+                {% endif %}
               </li>
             {% endfor %}
           </ul>

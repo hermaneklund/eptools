@@ -1500,6 +1500,9 @@ def _load_strategi_items() -> list[dict[str, object]]:
                 strategi_items.append({"label": str(col).strip(), "value": strategi_row.get(col, "")})
     except Exception:
         strategi_items = []
+    allocated = sum(_to_float(item["value"]) or 0.0 for item in strategi_items)
+    cash = max(0.0, 1.0 - allocated)
+    strategi_items.append({"label": "Cash", "value": cash, "computed": True})
     return strategi_items
 
 
@@ -1529,7 +1532,7 @@ async def strategi_update(request: Request):
             data[label] = val
 
     total = sum(values) if values else 0
-    if not valid or abs(total - 1) > 0.001:
+    if not valid or total > 1.001:
         referer = request.headers.get("referer", "/dashboard")
         return RedirectResponse(referer, status_code=303)
 
