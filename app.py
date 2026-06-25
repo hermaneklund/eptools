@@ -3742,7 +3742,7 @@ def ombalansering_fi_export():
 
 
 @app.get("/uppbyggnader", response_class=HTMLResponse)
-def uppbyggnader(request: Request):
+def uppbyggnader(request: Request, advisor: str = ""):
     mandat = _load_sheet("Mandat")
     detaljerat = _load_sheet("Detaljerat")
     taggar_df = _load_sheet("Taggar")
@@ -3760,6 +3760,8 @@ def uppbyggnader(request: Request):
                 "request": request,
                 "rows": [],
                 "columns": [],
+                "advisor": advisor,
+                "advisor_options": [],
                 "format_cell": format_cell,
                 "format_percent": format_percent,
             },
@@ -3816,6 +3818,14 @@ def uppbyggnader(request: Request):
             if pd.notna(kurs):
                 currency_map[key] = float(kurs)
 
+    advisor_col = "Rådgivare" if "Rådgivare" in mandat.columns else ""
+    advisor_options = []
+    if advisor_col:
+        advisor_options = sorted(
+            mandat[advisor_col].dropna().astype(str).str.strip()
+            .replace("", pd.NA).dropna().unique().tolist()
+        )
+
     for col in ["dynamisk", "CS", "CV", "Ed", "Alt", "FI", "dynCS", "dynCV", "dynEd", "dynAlt"]:
         if col not in mandat.columns:
             mandat[col] = 0
@@ -3824,6 +3834,9 @@ def uppbyggnader(request: Request):
     for _, mrow in mandat.iterrows():
         number = str(mrow.get(number_col, "")).strip()
         if not number:
+            continue
+        radgivare = str(mrow.get(advisor_col, "")).strip() if advisor_col else ""
+        if advisor and radgivare != advisor:
             continue
 
         details = (
@@ -3929,6 +3942,8 @@ def uppbyggnader(request: Request):
             "request": request,
             "rows": rows,
             "columns": columns,
+            "advisor": advisor,
+            "advisor_options": advisor_options,
             "format_cell": format_cell,
             "format_percent": format_percent,
         },

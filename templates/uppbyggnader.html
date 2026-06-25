@@ -80,6 +80,17 @@
         <div class="sheet-header-row" style="margin-bottom: 12px;">
           <h2>Avvikande vikter</h2>
         </div>
+        {% if advisor_options %}
+        <form method="get" action="/uppbyggnader" style="margin-bottom: 16px;">
+          <label for="advisor-filter" style="font-size: 0.85rem; margin-right: 8px;">Rådgivare:</label>
+          <select id="advisor-filter" name="advisor" onchange="this.form.submit()" class="customer-filter-select">
+            <option value="">– Alla –</option>
+            {% for opt in advisor_options %}
+              <option value="{{ opt }}"{% if advisor == opt %} selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        {% endif %}
         <div class="table-wrap">
           <table>
             <thead>
