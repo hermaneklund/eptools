@@ -81,15 +81,15 @@
           <h2>Avvikande vikter</h2>
         </div>
         {% if advisor_options %}
-        <form method="get" action="/uppbyggnader" style="margin-bottom: 16px;">
+        <div style="margin-bottom: 16px;">
           <label for="advisor-filter" style="font-size: 0.85rem; margin-right: 8px;">Rådgivare:</label>
-          <select id="advisor-filter" name="advisor" onchange="this.form.submit()" class="customer-filter-select">
+          <select id="advisor-filter" class="customer-filter-select">
             <option value="">– Alla –</option>
             {% for opt in advisor_options %}
-              <option value="{{ opt }}"{% if advisor == opt %} selected{% endif %}>{{ opt }}</option>
+              <option value="{{ opt }}">{{ opt }}</option>
             {% endfor %}
           </select>
-        </form>
+        </div>
         {% endif %}
         <div class="table-wrap">
           <table>
@@ -102,7 +102,7 @@
             </thead>
             <tbody>
               {% for row in rows %}
-                <tr>
+                <tr data-radgivare="{{ row.get('radgivare', '') }}">
                   {% for col in columns %}
                     <td>
                       {% if col == "Number" %}
@@ -158,6 +158,16 @@
       });
 
       backdrop.addEventListener("click", closeSidebar);
+
+      const advisorFilter = document.getElementById("advisor-filter");
+      if (advisorFilter) {
+        advisorFilter.addEventListener("change", () => {
+          const val = advisorFilter.value;
+          document.querySelectorAll("tbody tr").forEach(tr => {
+            tr.style.display = (!val || tr.dataset.radgivare === val) ? "" : "none";
+          });
+        });
+      }
       const sidebarToggles = document.querySelectorAll(".sidebar-toggle");
       sidebarToggles.forEach((toggle) => {
         const targetId = toggle.dataset.target;

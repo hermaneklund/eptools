@@ -3839,8 +3839,6 @@ def uppbyggnader(request: Request, advisor: str = ""):
         if not number:
             continue
         radgivare = str(mrow.get(advisor_col, "")).strip() if advisor_col else ""
-        if advisor and radgivare != advisor:
-            continue
 
         details = (
             detaljerat[detaljerat["Number"].astype(str).str.strip() == number]
@@ -3922,6 +3920,7 @@ def uppbyggnader(request: Request, advisor: str = ""):
                 "Värde": holdings_total,
                 "is_matardepo": is_matardepo,
                 "mandat": str(mrow.get("Mandat", "")).strip(),
+                "radgivare": radgivare,
                 **under_flags,
             }
         )
