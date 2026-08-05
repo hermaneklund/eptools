@@ -3563,8 +3563,8 @@ def ombalansering_fi(request: Request, q: str = ""):
 
         for holding, actual_value in holding_values.items():
             vs_target_raw = actual_value - fi_position_value
-            vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
-            if abs(vs_target) > 0.20 * fi_position_value:
+            if abs(vs_target_raw) > 0.20 * fi_position_value:
+                vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
                 rows.append({
                     "Number": number,
                     "Kund": str(mrow.get("Kund", "")).strip(),
@@ -3719,8 +3719,8 @@ def ombalansering_fi_export():
 
         for holding, actual_value in holding_values.items():
             vs_target_raw = actual_value - fi_position_value
-            vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
-            if abs(vs_target) > 0.20 * fi_position_value:
+            if abs(vs_target_raw) > 0.20 * fi_position_value:
+                vs_target = (1 if vs_target_raw >= 0 else -1) * max(50000, round(abs(vs_target_raw) / 50000) * 50000)
                 rows.append({
                     "Number": number,
                     "Kund": str(mrow.get("Kund", "")).strip(),
