@@ -466,12 +466,19 @@
             const normalized = raw.map((v) =>
               v === null || base === null || base === 0 ? null : ((v / base) - 1) * 100
             );
+            const isPrimary = name === "Alternativa";
             return {
               name,
               x: labels,
               y: normalized,
               mode: "lines",
-              line: { color: colors[name] || "#2C6E4F", width: 2, shape: "spline", smoothing: 0.4 },
+              line: {
+                color: colors[name] || "#2C6E4F",
+                width: isPrimary ? 2 : 1.4,
+                shape: "spline",
+                smoothing: 0.4,
+              },
+              opacity: isPrimary ? 1 : 0.55,
             };
           });
           return { labels, datasets };
