@@ -62,6 +62,7 @@ def log_db_path_on_startup():
         exists,
         size,
     )
+    _ensure_edgedata_schema()
 
 
 def _find_header_row(raw_df: pd.DataFrame, header_keys: list[str]) -> int:
@@ -106,6 +107,24 @@ def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
         (table,),
     )
     return cursor.fetchone() is not None
+
+
+def _ensure_edgedata_schema() -> None:
+    """Self-heal the edgedata table: add NOMXSCSEPI if an older DB (e.g. a
+    freshly deployed production DB) doesn't have it yet. Avoids depending on
+    a manual ALTER TABLE being run before/after deploy."""
+    if not DB_PATH.exists():
+        return
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            if not _table_exists(conn, "edgedata"):
+                return
+            cols = {row[1] for row in conn.execute('PRAGMA table_info("edgedata")').fetchall()}
+            if "NOMXSCSEPI" not in cols:
+                conn.execute('ALTER TABLE edgedata ADD COLUMN "NOMXSCSEPI" REAL')
+                conn.commit()
+    except Exception:
+        logging.getLogger("uvicorn.error").exception("[edgedata] failed to ensure NOMXSCSEPI column")
 
 
 def _load_sheet_from_db(sheet_name: str) -> pd.DataFrame:
@@ -1351,6 +1370,7 @@ def _model_total_from_actions(table: str) -> float:
 
 @app.post("/edge-data-add")
 async def edge_data_add(request: Request):
+    _ensure_edgedata_schema()
     form = await request.form()
     total_value = _to_float(form.get("total_value")) or 0
     today = datetime.now().strftime("%Y-%m-%d")
@@ -1382,6 +1402,7 @@ async def edge_data_backfill(
     edgedata (matched by date) — it never inserts new rows, since Edge/
     FirstNorth/OMXSSCPI values for those dates wouldn't exist anyway."""
     referer = request.headers.get("referer") or "/edge"
+    _ensure_edgedata_schema()
     if backfill_file is None or not backfill_file.filename:
         return RedirectResponse(url=referer, status_code=303)
     content = await backfill_file.read()
@@ -1411,15 +1432,19 @@ async def edge_data_backfill(
     dates = _parse_date_series(df[date_col])
     values = pd.to_numeric(df[value_col], errors="coerce")
 
-    with sqlite3.connect(DB_PATH) as conn:
-        for dt, val in zip(dates, values):
-            if pd.isna(dt) or pd.isna(val):
-                continue
-            conn.execute(
-                f'UPDATE edgedata SET "{target_col}" = ? WHERE DATE("Datum") = ?',
-                (float(val), dt.strftime("%Y-%m-%d")),
-            )
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            for dt, val in zip(dates, values):
+                if pd.isna(dt) or pd.isna(val):
+                    continue
+                conn.execute(
+                    f'UPDATE edgedata SET "{target_col}" = ? WHERE DATE("Datum") = ?',
+                    (float(val), dt.strftime("%Y-%m-%d")),
+                )
+            conn.commit()
+    except Exception:
+        logging.getLogger("uvicorn.error").exception("[edge-data-backfill] update failed")
+        return RedirectResponse(url=referer, status_code=303)
 
     return RedirectResponse(url=referer, status_code=303)
 
@@ -1489,6 +1514,7 @@ def _update_all_models_for_today() -> None:
         conn.commit()
 
     # Edge
+    _ensure_edgedata_schema()
     edge_total = _model_total_from_actions("edgeactions")
     firstnorth = _fetch_yf_last("^FIRSTNORTHSEK")
     omxsscpi = _fetch_yf_last("^OMXSSCPI")
