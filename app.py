@@ -1356,18 +1356,71 @@ async def edge_data_add(request: Request):
     today = datetime.now().strftime("%Y-%m-%d")
     firstnorth = _fetch_yf_last("^FIRSTNORTHSEK")
     omxsscpi = _fetch_yf_last("^OMXSSCPI")
+    omxscsepi = _fetch_yf_last("^NOMXSCSEPI")
     with sqlite3.connect(DB_PATH) as conn:
         cur = conn.execute(
-            'UPDATE edgedata SET "Edge" = ?, "FirstNorth" = ?, "OMXSSCPI" = ? WHERE DATE("Datum") = ?',
-            (total_value, firstnorth, omxsscpi, today),
+            'UPDATE edgedata SET "Edge" = ?, "FirstNorth" = ?, "OMXSSCPI" = ?, "NOMXSCSEPI" = ? WHERE DATE("Datum") = ?',
+            (total_value, firstnorth, omxsscpi, omxscsepi, today),
         )
         if cur.rowcount == 0:
             conn.execute(
-                'INSERT INTO edgedata ("Datum", "Edge", "FirstNorth", "OMXSSCPI") VALUES (?, ?, ?, ?)',
-                (today, total_value, firstnorth, omxsscpi),
+                'INSERT INTO edgedata ("Datum", "Edge", "FirstNorth", "OMXSSCPI", "NOMXSCSEPI") VALUES (?, ?, ?, ?, ?)',
+                (today, total_value, firstnorth, omxsscpi, omxscsepi),
             )
         conn.commit()
     referer = request.headers.get("referer") or "/edge"
+    return RedirectResponse(url=referer, status_code=303)
+
+
+@app.post("/edge-data-backfill")
+async def edge_data_backfill(
+    request: Request,
+    backfill_file: UploadFile = File(default=None),
+):
+    """Backfill historical NOMXSCSEPI values (or any edgedata column) from a
+    two-column Date/Value dump. Only updates rows that already exist in
+    edgedata (matched by date) — it never inserts new rows, since Edge/
+    FirstNorth/OMXSSCPI values for those dates wouldn't exist anyway."""
+    referer = request.headers.get("referer") or "/edge"
+    if backfill_file is None or not backfill_file.filename:
+        return RedirectResponse(url=referer, status_code=303)
+    content = await backfill_file.read()
+    if not content:
+        return RedirectResponse(url=referer, status_code=303)
+
+    try:
+        if backfill_file.filename.lower().endswith(".csv"):
+            df = pd.read_csv(BytesIO(content))
+        else:
+            df = pd.read_excel(BytesIO(content), engine="openpyxl")
+    except Exception:
+        return RedirectResponse(url=referer, status_code=303)
+
+    df.columns = [str(c).strip() for c in df.columns]
+    date_col = next((c for c in df.columns if c.strip().lower() in ("date", "datum")), None)
+    value_col = next(
+        (c for c in df.columns if c.strip().lower() in ("value", "värde", "nomxscsepi")), None
+    )
+    if date_col is None or value_col is None:
+        if len(df.columns) >= 2:
+            date_col, value_col = df.columns[0], df.columns[1]
+        else:
+            return RedirectResponse(url=referer, status_code=303)
+
+    target_col = value_col if value_col in {"NOMXSCSEPI", "Edge", "FirstNorth", "OMXSSCPI"} else "NOMXSCSEPI"
+    dates = _parse_date_series(df[date_col])
+    values = pd.to_numeric(df[value_col], errors="coerce")
+
+    with sqlite3.connect(DB_PATH) as conn:
+        for dt, val in zip(dates, values):
+            if pd.isna(dt) or pd.isna(val):
+                continue
+            conn.execute(
+                f'UPDATE edgedata SET "{target_col}" = ? WHERE DATE("Datum") = ?',
+                (float(val), dt.strftime("%Y-%m-%d")),
+            )
+        conn.commit()
+
     return RedirectResponse(url=referer, status_code=303)
 
 
@@ -1439,15 +1492,16 @@ def _update_all_models_for_today() -> None:
     edge_total = _model_total_from_actions("edgeactions")
     firstnorth = _fetch_yf_last("^FIRSTNORTHSEK")
     omxsscpi = _fetch_yf_last("^OMXSSCPI")
+    omxscsepi = _fetch_yf_last("^NOMXSCSEPI")
     with sqlite3.connect(DB_PATH) as conn:
         cur = conn.execute(
-            'UPDATE edgedata SET "Edge" = ?, "FirstNorth" = ?, "OMXSSCPI" = ? WHERE DATE("Datum") = ?',
-            (edge_total, firstnorth, omxsscpi, today),
+            'UPDATE edgedata SET "Edge" = ?, "FirstNorth" = ?, "OMXSSCPI" = ?, "NOMXSCSEPI" = ? WHERE DATE("Datum") = ?',
+            (edge_total, firstnorth, omxsscpi, omxscsepi, today),
         )
         if cur.rowcount == 0:
             conn.execute(
-                'INSERT INTO edgedata ("Datum", "Edge", "FirstNorth", "OMXSSCPI") VALUES (?, ?, ?, ?)',
-                (today, edge_total, firstnorth, omxsscpi),
+                'INSERT INTO edgedata ("Datum", "Edge", "FirstNorth", "OMXSSCPI", "NOMXSCSEPI") VALUES (?, ?, ?, ?, ?)',
+                (today, edge_total, firstnorth, omxsscpi, omxscsepi),
             )
         conn.commit()
 
@@ -5313,7 +5367,7 @@ def edge(request: Request):
         perf_df = perf_df.dropna(subset=["Datum"])
         perf_df["Year"] = perf_df["Datum"].dt.year
         perf_df = perf_df.sort_values(by="Datum")
-        for label in ["Edge", "FirstNorth", "OMXSSCPI"]:
+        for label in ["Edge", "FirstNorth", "OMXSSCPI", "NOMXSCSEPI"]:
             if label not in perf_df.columns:
                 continue
             row = {"Name": label}
@@ -5348,7 +5402,7 @@ def edge(request: Request):
             performance_rows.append(row)
         for _, row in perf_df.iterrows():
             point = {"date": row["Datum"].strftime("%Y-%m-%d")}
-            for label in ["Edge", "FirstNorth", "OMXSSCPI"]:
+            for label in ["Edge", "FirstNorth", "OMXSSCPI", "NOMXSCSEPI"]:
                 if label in perf_df.columns:
                     point[label] = _to_float(row.get(label))
             chart_points.append(point)
