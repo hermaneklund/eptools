@@ -3986,6 +3986,7 @@ def uppbyggnader(request: Request, advisor: str = ""):
 
         forv_raw = mrow.get("Förvaltningsnotering", "")
         forv_str = "" if pd.isna(forv_raw) else str(forv_raw).strip()
+        is_nordnet = (_to_float(number) or 0) > 9_000_000
         rows.append(
             {
                 "Number": number,
@@ -3999,6 +4000,7 @@ def uppbyggnader(request: Request, advisor: str = ""):
                 "Kassa": valuta_total,
                 "Värde": holdings_total,
                 "is_matardepo": is_matardepo,
+                "is_nordnet": is_nordnet,
                 "mandat": str(mrow.get("Mandat", "")).strip(),
                 "radgivare": radgivare,
                 **under_flags,
@@ -4008,6 +4010,7 @@ def uppbyggnader(request: Request, advisor: str = ""):
     rows = sorted(
         rows,
         key=lambda r: (
+            1 if r.get("is_nordnet") else 0,
             1 if r.get("is_matardepo") else 0,
             str(r.get("mandat", "")).lower(),
             _to_float(r.get("Number", 0)) or 0,

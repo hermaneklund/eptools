@@ -102,6 +102,11 @@
             </thead>
             <tbody>
               {% for row in rows %}
+                {% if row.get("is_nordnet") and not loop.first and not rows[loop.index0 - 1].get("is_nordnet") %}
+                  <tr class="section-row">
+                    <td colspan="{{ columns | length }}">Nordnet</td>
+                  </tr>
+                {% endif %}
                 <tr data-radgivare="{{ row.get('radgivare', '') }}">
                   {% for col in columns %}
                     <td>
