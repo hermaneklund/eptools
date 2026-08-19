@@ -1688,10 +1688,11 @@ def _load_fixed_income_ytd() -> dict[str, float | None]:
             return {
                 "ModelYTD": _to_float(row.get("ModelYTD")),
                 "Index1YTD": _to_float(row.get("Index1YTD")),
+                "Index2YTD": _to_float(row.get("Index2YTD")),
             }
     except Exception:
         pass
-    return {"ModelYTD": None, "Index1YTD": None}
+    return {"ModelYTD": None, "Index1YTD": None, "Index2YTD": None}
 
 
 @app.post("/fixed-income-ytd-update")
@@ -1711,9 +1712,10 @@ async def fixed_income_ytd_update(request: Request):
 
     model_ytd = _parse_pct(form.get("model_ytd"), current.get("ModelYTD"))
     index1_ytd = _parse_pct(form.get("index1_ytd"), current.get("Index1YTD"))
+    index2_ytd = _parse_pct(form.get("index2_ytd"), current.get("Index2YTD"))
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame([{"ModelYTD": model_ytd, "Index1YTD": index1_ytd}])
+    df = pd.DataFrame([{"ModelYTD": model_ytd, "Index1YTD": index1_ytd, "Index2YTD": index2_ytd}])
     with sqlite3.connect(DB_PATH) as conn:
         df.to_sql("fixedincomeytd", conn, if_exists="replace", index=False)
 
@@ -2015,6 +2017,25 @@ MODELLPORTFOLJ_WEIGHTS = {
     "Edge": 0.15,
     "Alternativa": 0.10,
 }
+
+
+def _resolve_spec_index(
+    spec: dict, data_df: pd.DataFrame, slot: int, default_col_index: int
+) -> tuple[str, float | None]:
+    """Resolve the name/value for a model's Index1 or Index2 slot. A slot can
+    either be a fixed annual rate (spec['index{slot}_annual_rate']/'_label')
+    or a data column, positioned by spec['index{slot}_col_index'] (falling
+    back to default_col_index) into spec['index_cols']."""
+    annual_rate = spec.get(f"index{slot}_annual_rate")
+    if annual_rate is not None:
+        name = spec.get(f"index{slot}_label") or f"{annual_rate * 100:.0f}% p.a."
+        return name, _prorated_annual_rate(annual_rate)
+    cols = spec.get("index_cols") or []
+    col_index = spec.get(f"index{slot}_col_index", default_col_index)
+    if len(cols) > col_index:
+        col = cols[col_index]
+        return col, _compute_series_ytd(data_df, col)
+    return "", None
 
 
 def _compute_modellportfolj_ytd(model_ytd_by_title: dict[str, float | None]) -> float | None:
@@ -2479,6 +2500,18 @@ def format_percent_1(value) -> str:
     except (TypeError, ValueError):
         return ""
     return f"{_format_number(num * 100, 1)}%"
+
+
+def format_number_1(value) -> str:
+    """Like format_percent_1 but without the trailing % — for editable
+    number inputs, so the Swedish comma decimal separator is used there too."""
+    if value is None or value == "":
+        return ""
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return _format_number(num, 1)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -4960,8 +4993,9 @@ def model_dashboard(request: Request):
             "data_tables": ["altdata", "AltData"],
             "model_col": "Alternativa",
             "index_cols": ["RLY SEK"],
-            "index2_annual_rate": 0.07,
-            "index2_label": "7% p.a.",
+            "index1_annual_rate": 0.07,
+            "index1_label": "7% p.a.",
+            "index2_col_index": 0,
         },
         {
             "title": "Core Världen",
@@ -4979,10 +5013,10 @@ def model_dashboard(request: Request):
         {
             "Model": "Fixed Income",
             "ModelYTD": fi_ytd.get("ModelYTD"),
-            "Index1Name": "",
+            "Index1Name": "Stibor + 3% p.a.",
             "Index1YTD": fi_ytd.get("Index1YTD"),
-            "Index2Name": "",
-            "Index2YTD": None,
+            "Index2Name": "Spiltan HRF",
+            "Index2YTD": fi_ytd.get("Index2YTD"),
             "editable": True,
         }
     ]
@@ -5009,30 +5043,27 @@ def model_dashboard(request: Request):
             }
         )
 
-        if spec.get("index2_annual_rate") is not None:
-            index2_name = spec.get("index2_label") or f"{spec['index2_annual_rate'] * 100:.0f}% p.a."
-            index2_ytd = _prorated_annual_rate(spec["index2_annual_rate"])
-        else:
-            index2_name = spec["index_cols"][1] if len(spec["index_cols"]) > 1 else ""
-            index2_ytd = _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None
+        index1_name, index1_ytd = _resolve_spec_index(spec, data_df, 1, 0)
+        index2_name, index2_ytd = _resolve_spec_index(spec, data_df, 2, 1)
 
         ytd_row = {
             "Model": spec["title"],
             "ModelYTD": _compute_series_ytd(data_df, spec["model_col"]),
-            "Index1Name": spec["index_cols"][0] if spec["index_cols"] else "",
-            "Index1YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
+            "Index1Name": index1_name,
+            "Index1YTD": index1_ytd,
             "Index2Name": index2_name,
             "Index2YTD": index2_ytd,
         }
         ytd_rows.append(ytd_row)
 
     model_ytd_by_title = {row["Model"]: row.get("ModelYTD") for row in ytd_rows}
+    index1_ytd_by_title = {row["Model"]: row.get("Index1YTD") for row in ytd_rows}
     ytd_rows.append(
         {
             "Model": "Modellportfölj",
             "ModelYTD": _compute_modellportfolj_ytd(model_ytd_by_title),
             "Index1Name": "",
-            "Index1YTD": None,
+            "Index1YTD": _compute_modellportfolj_ytd(index1_ytd_by_title),
             "Index2Name": "",
             "Index2YTD": None,
         }
@@ -5069,6 +5100,7 @@ def model_dashboard(request: Request):
             "strategi_items": strategi_items,
             "format_cell": format_cell,
             "format_percent_1": format_percent_1,
+            "format_number_1": format_number_1,
         },
     )
 
@@ -5096,8 +5128,9 @@ def dashboard_export():
             "data_tables": ["altdata", "AltData"],
             "model_col": "Alternativa",
             "index_cols": ["RLY SEK"],
-            "index2_annual_rate": 0.07,
-            "index2_label": "7% p.a.",
+            "index1_annual_rate": 0.07,
+            "index1_label": "7% p.a.",
+            "index2_col_index": 0,
         },
         {
             "title": "Core Världen",
@@ -5110,12 +5143,13 @@ def dashboard_export():
 
     fi_ytd = _load_fixed_income_ytd()
     model_ytd_by_title = {"Fixed Income": fi_ytd.get("ModelYTD")}
+    index1_ytd_by_title = {"Fixed Income": fi_ytd.get("Index1YTD")}
     ytd_export = [
         {
             "Modell": "Fixed Income",
             "E&P Förvaltning YTD": fi_ytd.get("ModelYTD"),
-            "Index 1 YTD": fi_ytd.get("Index1YTD"),
-            "Index 2 YTD": None,
+            "Stibor + 3% p.a. YTD": fi_ytd.get("Index1YTD"),
+            "Spiltan HRF YTD": fi_ytd.get("Index2YTD"),
         }
     ]
     holdings_export = []
@@ -5125,19 +5159,18 @@ def dashboard_export():
         data_df = _load_first_existing_table(spec["data_tables"])
         holdings_rows = _build_model_holdings_rows(actions_df)
 
-        if spec.get("index2_annual_rate") is not None:
-            index2_key = (spec.get("index2_label") or "Index 2") + " YTD"
-            index2_ytd = _prorated_annual_rate(spec["index2_annual_rate"])
-        else:
-            index2_key = (spec["index_cols"][1] + " YTD") if len(spec["index_cols"]) > 1 else "Index 2 YTD"
-            index2_ytd = _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None
+        index1_name, index1_ytd = _resolve_spec_index(spec, data_df, 1, 0)
+        index2_name, index2_ytd = _resolve_spec_index(spec, data_df, 2, 1)
+        index1_key = (index1_name or "Index 1") + " YTD"
+        index2_key = (index2_name or "Index 2") + " YTD"
 
         model_ytd = _compute_series_ytd(data_df, spec["model_col"])
         model_ytd_by_title[spec["title"]] = model_ytd
+        index1_ytd_by_title[spec["title"]] = index1_ytd
         ytd_export.append({
             "Modell": spec["title"],
             "E&P Förvaltning YTD": model_ytd,
-            spec["index_cols"][0] + " YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
+            index1_key: index1_ytd,
             index2_key: index2_ytd,
         })
 
@@ -5153,6 +5186,7 @@ def dashboard_export():
         {
             "Modell": "Modellportfölj",
             "E&P Förvaltning YTD": _compute_modellportfolj_ytd(model_ytd_by_title),
+            "Modellindex YTD": _compute_modellportfolj_ytd(index1_ytd_by_title),
         }
     )
 
