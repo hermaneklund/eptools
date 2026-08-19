@@ -1941,21 +1941,44 @@ body {
 }
 
 .dashboard-perf-table .perf-label-col {
-  width: 64%;
+  width: 25%;
   white-space: nowrap;
   text-align: left;
 }
 
 .dashboard-perf-table .perf-model-col {
-  width: 9%;
-  min-width: 64px;
-  max-width: 80px;
   white-space: nowrap;
   text-align: center;
 }
 
-.dashboard-perf-table .dashboard-modul-row td {
+.perf-inline-form {
+  display: inline;
+}
+
+.perf-inline-input {
+  width: 3em;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: right;
+  border-bottom: 1px dashed transparent;
+}
+
+.perf-inline-input:hover,
+.perf-inline-input:focus {
+  border-bottom-color: rgba(15, 23, 42, 0.35);
+  outline: none;
+}
+
+.dashboard-perf-table .dashboard-modul-row .dashboard-modul-cell-pos {
   background: #eef6ee;
+}
+
+.dashboard-perf-table .dashboard-modul-row .dashboard-modul-cell-neg {
+  background: #fdecec;
 }
 
 .dashboard-num-pos {

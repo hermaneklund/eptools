@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Förvaltning Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=3" />
+    <link rel="stylesheet" href="/static/style.css?v=6" />
     <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
@@ -91,15 +91,49 @@
               <tr class="dashboard-modul-row">
                 <td class="perf-label-col">E&P Förvaltning</td>
                 {% for row in ytd_rows %}
-                  <td class="perf-model-col">{% if row.ModelYTD is not none %}{{ format_percent_1(row.ModelYTD) }}{% endif %}</td>
+                  {% set vs_bench_cls = "" %}
+                  {% if row.ModelYTD is not none and row.Index1YTD is not none %}
+                    {% set vs_bench_cls = "dashboard-modul-cell-pos" if row.ModelYTD > row.Index1YTD else "dashboard-modul-cell-neg" %}
+                  {% endif %}
+                  <td class="perf-model-col {{ vs_bench_cls }}">
+                    {% if row.get('editable') %}
+                      <form method="post" action="/fixed-income-ytd-update" class="perf-inline-form">
+                        <input
+                          type="text"
+                          name="model_ytd"
+                          value="{{ '' if row.ModelYTD is none else (row.ModelYTD * 100) | round(1) }}"
+                          inputmode="decimal"
+                          placeholder="–"
+                          class="perf-inline-input"
+                          onchange="this.form.requestSubmit()"
+                        />%
+                      </form>
+                    {% elif row.ModelYTD is not none %}
+                      {{ format_percent_1(row.ModelYTD) }}
+                    {% endif %}
+                  </td>
                 {% endfor %}
               </tr>
               <tr>
                 <td class="perf-label-col">Primary Index</td>
                 {% for row in ytd_rows %}
                   <td class="perf-model-col">
-                    {% if row.Index1YTD is not none %}{{ format_percent_1(row.Index1YTD) }}{% endif %}
-                    {% if row.Index1Name %}<div style="font-size:10px;color:#94a3b8;line-height:1.1;">{{ row.Index1Name }}</div>{% endif %}
+                    {% if row.get('editable') %}
+                      <form method="post" action="/fixed-income-ytd-update" class="perf-inline-form">
+                        <input
+                          type="text"
+                          name="index1_ytd"
+                          value="{{ '' if row.Index1YTD is none else (row.Index1YTD * 100) | round(1) }}"
+                          inputmode="decimal"
+                          placeholder="–"
+                          class="perf-inline-input"
+                          onchange="this.form.requestSubmit()"
+                        />%
+                      </form>
+                    {% else %}
+                      {% if row.Index1YTD is not none %}{{ format_percent_1(row.Index1YTD) }}{% endif %}
+                      {% if row.Index1Name %}<div style="font-size:10px;color:#94a3b8;line-height:1.1;">{{ row.Index1Name }}</div>{% endif %}
+                    {% endif %}
                   </td>
                 {% endfor %}
               </tr>

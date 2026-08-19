@@ -1680,6 +1680,47 @@ async def strategi_update(request: Request):
     return RedirectResponse(referer, status_code=303)
 
 
+def _load_fixed_income_ytd() -> dict[str, float | None]:
+    try:
+        df = _load_sheet_from_db("fixedincomeytd")
+        if not df.empty:
+            row = df.iloc[0]
+            return {
+                "ModelYTD": _to_float(row.get("ModelYTD")),
+                "Index1YTD": _to_float(row.get("Index1YTD")),
+            }
+    except Exception:
+        pass
+    return {"ModelYTD": None, "Index1YTD": None}
+
+
+@app.post("/fixed-income-ytd-update")
+async def fixed_income_ytd_update(request: Request):
+    form = await request.form()
+    current = _load_fixed_income_ytd()
+
+    def _parse_pct(raw, fallback):
+        if raw is None or str(raw).strip() == "":
+            return fallback
+        num = _to_float(raw)
+        if num is None:
+            return fallback
+        if abs(num) > 1:
+            num = num / 100.0
+        return num
+
+    model_ytd = _parse_pct(form.get("model_ytd"), current.get("ModelYTD"))
+    index1_ytd = _parse_pct(form.get("index1_ytd"), current.get("Index1YTD"))
+
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame([{"ModelYTD": model_ytd, "Index1YTD": index1_ytd}])
+    with sqlite3.connect(DB_PATH) as conn:
+        df.to_sql("fixedincomeytd", conn, if_exists="replace", index=False)
+
+    referer = request.headers.get("referer", "/dashboard")
+    return RedirectResponse(referer, status_code=303)
+
+
 @app.post("/import")
 async def import_excel(request: Request, excel_file: UploadFile = File(default=None)):
     uploaded_content: bytes | None = None
@@ -1953,6 +1994,37 @@ def _compute_series_ytd(data_df: pd.DataFrame, series_col: str) -> float | None:
     if prev_last == 0:
         return None
     return (cur_last / prev_last) - 1
+
+
+def _prorated_annual_rate(annual_rate: float, as_of: datetime | None = None) -> float:
+    """YTD value for a fixed annual hurdle rate, prorated by the share of the
+    calendar year elapsed so far (e.g. 7% p.a. -> ~3.5% at mid-year)."""
+    as_of = as_of or datetime.now()
+    year_start = datetime(as_of.year, 1, 1)
+    year_end = datetime(as_of.year + 1, 1, 1)
+    days_in_year = (year_end - year_start).days
+    days_elapsed = (as_of - year_start).days
+    share = days_elapsed / days_in_year if days_in_year else 0.0
+    return annual_rate * share
+
+
+MODELLPORTFOLJ_WEIGHTS = {
+    "Fixed Income": 0.40,
+    "Core Sverige": 0.20,
+    "Core Världen": 0.15,
+    "Edge": 0.15,
+    "Alternativa": 0.10,
+}
+
+
+def _compute_modellportfolj_ytd(model_ytd_by_title: dict[str, float | None]) -> float | None:
+    total = 0.0
+    for model, weight in MODELLPORTFOLJ_WEIGHTS.items():
+        value = model_ytd_by_title.get(model)
+        if value is None:
+            return None
+        total += weight * value
+    return total
 
 
 def _compute_series_3m(data_df: pd.DataFrame, series_col: str) -> float | None:
@@ -4882,6 +4954,16 @@ def model_dashboard(request: Request):
             "index_cols": ["OMXSSCPI", "FirstNorth"],
         },
         {
+            "title": "Alternativa",
+            "path": "/alternativa",
+            "actions_tables": ["altactions", "AltActions"],
+            "data_tables": ["altdata", "AltData"],
+            "model_col": "Alternativa",
+            "index_cols": ["RLY SEK"],
+            "index2_annual_rate": 0.07,
+            "index2_label": "7% p.a.",
+        },
+        {
             "title": "Core Världen",
             "path": "/core-varlden",
             "actions_tables": ["corevactions", "CoreVActions"],
@@ -4889,18 +4971,21 @@ def model_dashboard(request: Request):
             "model_col": "CoreVärlden",
             "index_cols": ["MSCI World SEK"],
         },
-        {
-            "title": "Alternativa",
-            "path": "/alternativa",
-            "actions_tables": ["altactions", "AltActions"],
-            "data_tables": ["altdata", "AltData"],
-            "model_col": "Alternativa",
-            "index_cols": ["RLY SEK"],
-        },
     ]
 
     model_tables = []
-    ytd_rows = []
+    fi_ytd = _load_fixed_income_ytd()
+    ytd_rows = [
+        {
+            "Model": "Fixed Income",
+            "ModelYTD": fi_ytd.get("ModelYTD"),
+            "Index1Name": "",
+            "Index1YTD": fi_ytd.get("Index1YTD"),
+            "Index2Name": "",
+            "Index2YTD": None,
+            "editable": True,
+        }
+    ]
 
     for spec in model_specs:
         actions_df = _load_first_existing_table(spec["actions_tables"])
@@ -4924,15 +5009,34 @@ def model_dashboard(request: Request):
             }
         )
 
+        if spec.get("index2_annual_rate") is not None:
+            index2_name = spec.get("index2_label") or f"{spec['index2_annual_rate'] * 100:.0f}% p.a."
+            index2_ytd = _prorated_annual_rate(spec["index2_annual_rate"])
+        else:
+            index2_name = spec["index_cols"][1] if len(spec["index_cols"]) > 1 else ""
+            index2_ytd = _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None
+
         ytd_row = {
             "Model": spec["title"],
             "ModelYTD": _compute_series_ytd(data_df, spec["model_col"]),
             "Index1Name": spec["index_cols"][0] if spec["index_cols"] else "",
             "Index1YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
-            "Index2Name": spec["index_cols"][1] if len(spec["index_cols"]) > 1 else "",
-            "Index2YTD": _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None,
+            "Index2Name": index2_name,
+            "Index2YTD": index2_ytd,
         }
         ytd_rows.append(ytd_row)
+
+    model_ytd_by_title = {row["Model"]: row.get("ModelYTD") for row in ytd_rows}
+    ytd_rows.append(
+        {
+            "Model": "Modellportfölj",
+            "ModelYTD": _compute_modellportfolj_ytd(model_ytd_by_title),
+            "Index1Name": "",
+            "Index1YTD": None,
+            "Index2Name": "",
+            "Index2YTD": None,
+        }
+    )
 
     taggar_df = _load_taggar_table()
     shortname_by_modelname = {}
@@ -4987,22 +5091,33 @@ def dashboard_export():
             "index_cols": ["OMXSSCPI", "FirstNorth"],
         },
         {
+            "title": "Alternativa",
+            "actions_tables": ["altactions", "AltActions"],
+            "data_tables": ["altdata", "AltData"],
+            "model_col": "Alternativa",
+            "index_cols": ["RLY SEK"],
+            "index2_annual_rate": 0.07,
+            "index2_label": "7% p.a.",
+        },
+        {
             "title": "Core Världen",
             "actions_tables": ["corevactions", "CoreVActions"],
             "data_tables": ["corevdata", "CoreVData"],
             "model_col": "CoreVärlden",
             "index_cols": ["MSCI World SEK"],
         },
-        {
-            "title": "Alternativa",
-            "actions_tables": ["altactions", "AltActions"],
-            "data_tables": ["altdata", "AltData"],
-            "model_col": "Alternativa",
-            "index_cols": ["RLY SEK"],
-        },
     ]
 
-    ytd_export = []
+    fi_ytd = _load_fixed_income_ytd()
+    model_ytd_by_title = {"Fixed Income": fi_ytd.get("ModelYTD")}
+    ytd_export = [
+        {
+            "Modell": "Fixed Income",
+            "E&P Förvaltning YTD": fi_ytd.get("ModelYTD"),
+            "Index 1 YTD": fi_ytd.get("Index1YTD"),
+            "Index 2 YTD": None,
+        }
+    ]
     holdings_export = []
 
     for spec in model_specs:
@@ -5010,11 +5125,20 @@ def dashboard_export():
         data_df = _load_first_existing_table(spec["data_tables"])
         holdings_rows = _build_model_holdings_rows(actions_df)
 
+        if spec.get("index2_annual_rate") is not None:
+            index2_key = (spec.get("index2_label") or "Index 2") + " YTD"
+            index2_ytd = _prorated_annual_rate(spec["index2_annual_rate"])
+        else:
+            index2_key = (spec["index_cols"][1] + " YTD") if len(spec["index_cols"]) > 1 else "Index 2 YTD"
+            index2_ytd = _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None
+
+        model_ytd = _compute_series_ytd(data_df, spec["model_col"])
+        model_ytd_by_title[spec["title"]] = model_ytd
         ytd_export.append({
             "Modell": spec["title"],
-            "E&P Förvaltning YTD": _compute_series_ytd(data_df, spec["model_col"]),
+            "E&P Förvaltning YTD": model_ytd,
             spec["index_cols"][0] + " YTD": _compute_series_ytd(data_df, spec["index_cols"][0]) if spec["index_cols"] else None,
-            (spec["index_cols"][1] + " YTD") if len(spec["index_cols"]) > 1 else "Index 2 YTD": _compute_series_ytd(data_df, spec["index_cols"][1]) if len(spec["index_cols"]) > 1 else None,
+            index2_key: index2_ytd,
         })
 
         for row in holdings_rows:
@@ -5024,6 +5148,13 @@ def dashboard_export():
                 "Vikt": _to_float(row.get("Vikt")) or 0,
                 "Utv.": _to_float(row.get("Utv")),
             })
+
+    ytd_export.append(
+        {
+            "Modell": "Modellportfölj",
+            "E&P Förvaltning YTD": _compute_modellportfolj_ytd(model_ytd_by_title),
+        }
+    )
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:

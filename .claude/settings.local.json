@@ -5,7 +5,23 @@
       "Bash(awk '{print $1, $2}')",
       "Bash(read line *)",
       "Bash(awk -F: '{print $1, $0}')",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(python -c ' *)",
+      "Bash(awk '/^@app\\\\.get\\\\\\(\"\\\\/\\(core-sverige|edge|alternativa|core-varlden\\)/ { start=NR; func=$0; getline; while\\(NR-start<100\\) { if\\(/chart_points.*json.dumps/\\) { print NR\": \"func; exit } getline } }' /c/Users/HermanEklund/portfolio-app/app.py)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(git commit -m 'Dynamic weights: lock modules via static fields, float the rest *)",
+      "Bash(Get-Content c:\\\\Users\\\\HermanEklund\\\\portfolio-app\\\\uvicorn.err.txt -Tail 50)",
+      "Bash(python3 -c \"import pandas; print\\(pandas.__version__\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8766/mandat-save-row -H 'Referer: http://127.0.0.1:8766/mandat' --data-urlencode row_id=200126 --data-urlencode 'row__200126__Kund=Carl Hedberg' --data-urlencode 'row__200126__Mandat=Balanserad offensiv' --data-urlencode row__200126__FI=0.55 --data-urlencode row__200126__CS=0.0 --data-urlencode row__200126__CV=0.0 --data-urlencode row__200126__Ed=0.0 --data-urlencode row__200126__Alt=0.0 --data-urlencode row__200126__Övr= --data-urlencode 'row__200126__RG7>25=1' --data-urlencode 'row__200126__Akt>75=1')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8766/mandat)",
+      "Bash(python -m py_compile app.py)",
+      "Bash(pip install *)",
+      "Bash(python -m pip install httpx --quiet)",
+      "Bash(cp data/portfolio.db data/portfolio_test_backup.db)",
+      "Bash(rm -f data/portfolio_test_backup.db)"
     ]
   }
 }
