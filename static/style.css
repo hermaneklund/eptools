@@ -1952,6 +1952,17 @@ body {
   text-align: center;
 }
 
+.dashboard-perf-table .dashboard-modul-row .perf-model-col {
+  text-align: center;
+  vertical-align: middle;
+  /* Primary/Secondary Index rows are two lines tall (value + subline).
+     Pad this single-line row symmetrically by the subline's ~12px height
+     (6px top + 6px bottom) so the row matches their height while keeping
+     the number dead-centered instead of pushed up by a bottom-only spacer. */
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
 .perf-inline-form {
   display: inline;
 }
@@ -1974,11 +1985,18 @@ body {
   outline: none;
 }
 
-.dashboard-perf-table .dashboard-modul-row .dashboard-modul-cell-pos {
+.dashboard-perf-table .perf-subline {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.1;
+  min-height: 12px;
+}
+
+.dashboard-perf-table .dashboard-bench-cell-pos {
   background: #eef6ee;
 }
 
-.dashboard-perf-table .dashboard-modul-row .dashboard-modul-cell-neg {
+.dashboard-perf-table .dashboard-bench-cell-neg {
   background: #fdecec;
 }
 

@@ -1580,9 +1580,6 @@ def _load_strategi_items() -> list[dict[str, object]]:
                 strategi_items.append({"label": str(col).strip(), "value": strategi_row.get(col, "")})
     except Exception:
         strategi_items = []
-    allocated = sum(_to_float(item["value"]) or 0.0 for item in strategi_items)
-    cash = max(0.0, 1.0 - allocated)
-    strategi_items.append({"label": "Cash", "value": cash, "computed": True})
     return strategi_items
 
 
@@ -5101,6 +5098,20 @@ def model_dashboard(request: Request):
             "format_cell": format_cell,
             "format_percent_1": format_percent_1,
             "format_number_1": format_number_1,
+        },
+    )
+
+
+@app.get("/strategisk-allokering", response_class=HTMLResponse)
+def strategisk_allokering(request: Request):
+    strategi_items = _load_strategi_items()
+    return templates.TemplateResponse(
+        request=request,
+        name="strategisk_allokering.html",
+        context={
+            "request": request,
+            "strategi_items": strategi_items,
+            "format_cell": format_cell,
         },
     )
 
