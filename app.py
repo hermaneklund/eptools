@@ -2016,6 +2016,12 @@ MODELLPORTFOLJ_WEIGHTS = {
 }
 
 
+def _modellportfolj_weights_tooltip() -> str:
+    return ", ".join(
+        f"{model} {weight * 100:.0f}%" for model, weight in MODELLPORTFOLJ_WEIGHTS.items()
+    )
+
+
 def _resolve_spec_index(
     spec: dict, data_df: pd.DataFrame, slot: int, default_col_index: int
 ) -> tuple[str, float | None]:
@@ -5058,6 +5064,7 @@ def model_dashboard(request: Request):
     ytd_rows.append(
         {
             "Model": "Modellportfölj",
+            "ModelTooltip": _modellportfolj_weights_tooltip(),
             "ModelYTD": _compute_modellportfolj_ytd(model_ytd_by_title),
             "Index1Name": "",
             "Index1YTD": _compute_modellportfolj_ytd(index1_ytd_by_title),

@@ -84,7 +84,11 @@
               <tr>
                 <th class="perf-label-col">YTD</th>
                 {% for row in ytd_rows %}
-                  <th class="perf-model-col">{{ row.Model }}</th>
+                  {% if row.get('ModelTooltip') %}
+                    <th class="perf-model-col" title="{{ row.ModelTooltip }}">{{ row.Model }}*</th>
+                  {% else %}
+                    <th class="perf-model-col">{{ row.Model }}</th>
+                  {% endif %}
                 {% endfor %}
               </tr>
             </thead>
