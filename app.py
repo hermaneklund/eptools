@@ -3335,7 +3335,7 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
             and mandat_lower != "aktier"
             and effective_holdings >= 200000
         ):
-            poster_fi = (effective_kassa_fi / c["position_fi"]) if c["position_fi"] else 0.0
+            poster_fi = (effective_kassa_fi / c["fi_position_value"]) if c["fi_position_value"] else 0.0
             rows.append(
                 {
                     "Number": c["number"],
