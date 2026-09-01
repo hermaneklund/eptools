@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Strategisk Allokering</title>
-    <link rel="stylesheet" href="/static/style.css?v=12" />
+    <link rel="stylesheet" href="/static/style.css?v=17" />
     <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
@@ -95,6 +95,73 @@
           <p class="empty">Inga data.</p>
         {% endif %}
       </section>
+
+      {% if strategi_items and strategi_items|length > 0 %}
+        {% set calc_palette = ["#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7", "#008300"] %}
+        {% set calc_module_colors = {
+          "Core Sverige": "#9cd4f0",
+          "Core Världen": "#5A9CB5",
+          "Edge": "#9cd8b3",
+          "Alternativa": "#f7e7a6",
+        } %}
+        <section class="sheet calc-tool">
+          <div class="small-table-title">Beräkna modulfördelning</div>
+
+          <div class="calc-layout">
+            <div class="calc-controls">
+              <div class="calc-row calc-size-row">
+                <label for="calc-size">Portföljstorlek</label>
+                <div class="calc-input-wrap calc-size-input-wrap">
+                  <input type="text" id="calc-size" inputmode="decimal" placeholder="0" />
+                  <span>kr</span>
+                </div>
+              </div>
+
+              <ul class="calc-modules">
+                <li class="calc-module-item calc-fi-item">
+                  <label>
+                    <input
+                      type="checkbox"
+                      id="calc-fi-checkbox"
+                      class="calc-fi-checkbox"
+                      data-color="#6E8C76"
+                      checked
+                    />
+                    Fixed Income
+                    <span class="calc-module-weight calc-fi-weight">
+                      (<input type="text" id="calc-fi" inputmode="decimal" value="0" />%)
+                    </span>
+                  </label>
+                </li>
+                {% for item in strategi_items %}
+                  <li class="calc-module-item">
+                    <label>
+                      <input
+                        type="checkbox"
+                        class="calc-module-checkbox"
+                        data-label="{{ item.label }}"
+                        data-weight="{{ item.value }}"
+                        data-color="{{ calc_module_colors.get(item.label, calc_palette[loop.index0 % calc_palette|length]) }}"
+                        checked
+                      />
+                      {{ item.label }}
+                    </label>
+                  </li>
+                {% endfor %}
+              </ul>
+
+              <p class="calc-warning" id="calc-warning" hidden></p>
+            </div>
+
+            <div class="calc-visual">
+              <div class="calc-donut-wrap">
+                <svg class="calc-donut" id="calc-donut" viewBox="0 0 160 160" role="img" aria-label="Modulfördelning"></svg>
+              </div>
+              <ul class="strategy-list calc-results" id="calc-results"></ul>
+            </div>
+          </div>
+        </section>
+      {% endif %}
     </main>
 
     <div class="modal-backdrop" id="strategy-backdrop"></div>
@@ -179,6 +246,133 @@
       if (strategyOpen) strategyOpen.addEventListener("click", openStrategy);
       if (strategyClose) strategyClose.addEventListener("click", closeStrategy);
       if (strategyBackdrop) strategyBackdrop.addEventListener("click", closeStrategy);
+
+      const calcSize = document.getElementById("calc-size");
+      const calcFi = document.getElementById("calc-fi");
+      const calcFiCheckbox = document.getElementById("calc-fi-checkbox");
+      const calcResults = document.getElementById("calc-results");
+      const calcWarning = document.getElementById("calc-warning");
+      const calcDonut = document.getElementById("calc-donut");
+      const calcCheckboxes = Array.from(document.querySelectorAll(".calc-module-checkbox"));
+      const UNASSIGNED_COLOR = "#c3c2b7";
+
+      const toNumber = (value) => {
+        const n = parseFloat(String(value).replace(",", "."));
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      const toAmount = (value) => {
+        const cleaned = String(value).replace(/[\s ]/g, "").replace(",", ".");
+        const n = parseFloat(cleaned);
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      const formatPct = (fraction) => `${Math.round(fraction * 100)}%`;
+
+      const formatKr = (amount) =>
+        `${Math.round(amount).toLocaleString("sv-SE")} kr`;
+
+      const swatch = (color) =>
+        `<span class="calc-swatch" style="background:${color}"></span>`;
+
+      const resultRow = (label, color, fraction, portfolioSize) => {
+        const li = document.createElement("li");
+        const secondary = portfolioSize > 0 ? `<span class="calc-result-kr">${formatKr(fraction * portfolioSize)}</span>` : "";
+        li.innerHTML = `<span class="calc-result-label">${swatch(color)}${label}</span><span class="calc-result-values"><strong>${formatPct(fraction)}</strong>${secondary}</span>`;
+        return li;
+      };
+
+      const buildDonut = (segments, portfolioSize) => {
+        if (!calcDonut) return;
+        const svgNS = "http://www.w3.org/2000/svg";
+        const cx = 80;
+        const cy = 80;
+        const r = 56;
+        const strokeWidth = 24;
+        const gapPx = 2;
+        const circumference = 2 * Math.PI * r;
+        calcDonut.innerHTML = "";
+
+        const visible = segments.filter((seg) => seg.value > 0.0005);
+        if (!visible.length) return;
+
+        let cursor = 0;
+        visible.forEach((seg) => {
+          const segLen = seg.value * circumference;
+          const gap = visible.length > 1 ? gapPx : 0;
+          const visibleLen = Math.max(segLen - gap, 0);
+          const startFraction = cursor + gap / 2 / circumference;
+          const circle = document.createElementNS(svgNS, "circle");
+          circle.setAttribute("cx", cx);
+          circle.setAttribute("cy", cy);
+          circle.setAttribute("r", r);
+          circle.setAttribute("fill", "none");
+          circle.setAttribute("stroke", seg.color);
+          circle.setAttribute("stroke-width", strokeWidth);
+          circle.setAttribute("stroke-dasharray", `${visibleLen} ${circumference - visibleLen}`);
+          circle.setAttribute("stroke-dashoffset", `${-(startFraction * circumference)}`);
+          circle.setAttribute("transform", `rotate(-90 ${cx} ${cy})`);
+          const title = document.createElementNS(svgNS, "title");
+          const titleAmount = portfolioSize > 0 ? ` · ${formatKr(seg.value * portfolioSize)}` : "";
+          title.textContent = `${seg.label} ${formatPct(seg.value)}${titleAmount}`;
+          circle.appendChild(title);
+          calcDonut.appendChild(circle);
+          cursor += seg.value;
+        });
+      };
+
+      const renderCalc = () => {
+        if (!calcResults) return;
+        const portfolioSize = Math.max(0, toAmount(calcSize ? calcSize.value : 0));
+        const fiChecked = calcFiCheckbox ? calcFiCheckbox.checked : true;
+        const fiColor = calcFiCheckbox ? calcFiCheckbox.dataset.color : "#6E8C76";
+        const fiPct = Math.max(0, Math.min(100, toNumber(calcFi.value)));
+        const fi = fiChecked ? fiPct / 100 : 0;
+        const remaining = Math.max(1 - fi, 0);
+        const checked = calcCheckboxes.filter((cb) => cb.checked);
+        const denom = checked.reduce((sum, cb) => sum + toNumber(cb.dataset.weight), 0);
+
+        const segments = [{ label: "Fixed Income", value: fi, color: fiColor }];
+
+        calcResults.innerHTML = "";
+        calcResults.appendChild(resultRow("Fixed Income", fiColor, fi, portfolioSize));
+
+        let allocated = 0;
+        calcCheckboxes.forEach((cb) => {
+          const label = cb.dataset.label;
+          const weight = toNumber(cb.dataset.weight);
+          const value = cb.checked && denom > 0 ? (weight / denom) * remaining : 0;
+          allocated += value;
+          segments.push({ label, value, color: cb.dataset.color });
+          calcResults.appendChild(resultRow(label, cb.dataset.color, value, portfolioSize));
+        });
+
+        const unassigned = Math.max(remaining - allocated, 0);
+        if (unassigned > 0.0005) {
+          segments.push({ label: "Ej fördelat", value: unassigned, color: UNASSIGNED_COLOR });
+          calcResults.appendChild(resultRow("Ej fördelat", UNASSIGNED_COLOR, unassigned, portfolioSize));
+        }
+
+        buildDonut(segments, portfolioSize);
+
+        if (calcWarning) {
+          if (remaining > 0 && (checked.length === 0 || denom === 0)) {
+            calcWarning.textContent = "Välj minst en modul med vikt > 0 att fördela resterande andel på.";
+            calcWarning.hidden = false;
+          } else {
+            calcWarning.hidden = true;
+          }
+        }
+      };
+
+      if (calcSize) calcSize.addEventListener("input", renderCalc);
+      if (calcFi) {
+        calcFi.addEventListener("input", renderCalc);
+        calcFi.addEventListener("click", (e) => e.stopPropagation());
+      }
+      if (calcFiCheckbox) calcFiCheckbox.addEventListener("change", renderCalc);
+      calcCheckboxes.forEach((cb) => cb.addEventListener("change", renderCalc));
+      renderCalc();
     </script>
   </body>
 </html>
