@@ -4115,11 +4115,20 @@ def uppbyggnader(request: Request, advisor: str = ""):
             }
         )
 
+    _module_deviation_order = ["Alt_under", "CS_under", "CV_under", "Ed_under", "FI_under"]
+
+    def _module_deviation_rank(r):
+        for idx, key in enumerate(_module_deviation_order):
+            if r.get(key):
+                return idx
+        return len(_module_deviation_order)
+
     rows = sorted(
         rows,
         key=lambda r: (
             1 if r.get("is_nordnet") else 0,
             1 if r.get("is_matardepo") else 0,
+            _module_deviation_rank(r),
             str(r.get("mandat", "")).lower(),
             _to_float(r.get("Number", 0)) or 0,
         ),
