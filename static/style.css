@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   font-family: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -1935,6 +1939,63 @@ body {
   background: #ffffff;
 }
 
+.fi-header-row {
+  margin-bottom: 44px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fi-stats {
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fi-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fi-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 210px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.fi-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.fi-stat-label small {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fi-stat-value {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.fixed-income-malkapital {
+  scroll-margin-top: 24px;
+}
+
 .malkapital-toolbar {
   display: flex;
   align-items: flex-end;
@@ -1981,20 +2042,30 @@ body {
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-.malkapital-save {
-  padding: 9px 20px;
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 20px;
   border: none;
   border-radius: 8px;
   background: var(--accent-strong);
   color: #ffffff;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  text-align: center;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
-.malkapital-save:hover {
+.btn-primary:hover {
   background: #0b5e58;
+  color: #ffffff;
 }
 
 .malkapital-list table {

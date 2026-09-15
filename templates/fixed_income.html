@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Portfolio Viewer - Fixed Income</title>
-    <link rel="stylesheet" href="/static/style.css?v=18" />
+    <link rel="stylesheet" href="/static/style.css?v=27" />
     <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
@@ -79,18 +79,20 @@
       </header>
 
       <section class="sheet fixed-income-main">
-          <div class="sheet-header-row">
-          <h2>Fixed income</h2>
-            <a class="sidebar-button" href="/fixed-income/export?sort_by={{ sort_by }}" style="width:auto; min-width:170px; text-align:center;">Exportera Excel</a>
-          </div>
-          <div class="sheet-sum in-table-box">
-            <div>
-              <span>Kassa FI (Att köpa &gt; 1):</span>
-              <strong>{{ format_cell("Värde i SEK", kassa_fi_sum) }}</strong>
+          <div class="sheet-header-row fi-header-row">
+            <div class="fi-stats">
+              <div class="fi-stat">
+                <span class="fi-stat-label">Kassa FI <small>(Att köpa &gt; 1)</small></span>
+                <strong class="fi-stat-value">{{ format_cell("Värde i SEK", kassa_fi_sum) }}</strong>
+              </div>
+              <div class="fi-stat">
+                <span class="fi-stat-label">Kassa (Matardepåer)</span>
+                <strong class="fi-stat-value">{{ format_cell("Värde i SEK", kassa_fi_matardepo) }}</strong>
+              </div>
             </div>
-            <div>
-              <span>Kassa (Matardepåer):</span>
-              <strong>{{ format_cell("Värde i SEK", kassa_fi_matardepo) }}</strong>
+            <div class="fi-header-actions">
+              <a class="btn-primary" href="#malkapital">Målkapital</a>
+              <a class="btn-primary" href="/fixed-income/export?sort_by={{ sort_by }}">Exportera Excel</a>
             </div>
           </div>
           <div class="table-wrap fixed-income-table">
@@ -160,7 +162,7 @@
           </div>
         </section>
 
-        <section class="sheet fixed-income-malkapital">
+        <section class="sheet fixed-income-malkapital" id="malkapital">
           <div class="sheet-header-row">
             <h2>Målkapital (byggnadsfas)</h2>
           </div>
@@ -174,7 +176,7 @@
               <label for="malkapital-value">Målkapital</label>
               <input type="text" id="malkapital-value" name="malkapital" placeholder="t.ex. 10000000" inputmode="numeric" required />
             </div>
-            <button type="submit" class="malkapital-save">Spara</button>
+            <button type="submit" class="btn-primary">Spara</button>
           </form>
 
           {% if malkapital_rows and malkapital_rows|length > 0 %}
