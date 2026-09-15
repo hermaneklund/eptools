@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>E&P Portfolio Viewer - Fixed Income</title>
-    <link rel="stylesheet" href="/static/style.css?v=17" />
+    <link rel="stylesheet" href="/static/style.css?v=18" />
     <link rel="icon" href="/static/epicon.png" type="image/png" />
   </head>
   <body>
@@ -158,6 +158,56 @@
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section class="sheet fixed-income-malkapital">
+          <div class="sheet-header-row">
+            <h2>Målkapital (byggnadsfas)</h2>
+          </div>
+
+          <form id="malkapital-add-form" method="post" action="/fixed-income/malkapital-save" class="malkapital-toolbar">
+            <div class="malkapital-field">
+              <label for="malkapital-number">Number</label>
+              <input type="text" id="malkapital-number" name="number" placeholder="t.ex. 1004603" required />
+            </div>
+            <div class="malkapital-field malkapital-field-wide">
+              <label for="malkapital-value">Målkapital</label>
+              <input type="text" id="malkapital-value" name="malkapital" placeholder="t.ex. 10000000" inputmode="numeric" required />
+            </div>
+            <button type="submit" class="malkapital-save">Spara</button>
+          </form>
+
+          {% if malkapital_rows and malkapital_rows|length > 0 %}
+            <div class="table-wrap malkapital-list">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Kund</th>
+                    <th>Målkapital</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in malkapital_rows %}
+                    <tr>
+                      <td>{{ row.Number }}</td>
+                      <td>{{ row.Kund }}</td>
+                      <td>{{ format_cell("Målkapital", row.Målkapital) }}</td>
+                      <td class="table-actions-cell">
+                        <form method="post" action="/fixed-income/malkapital-delete" class="malkapital-delete-form">
+                          <input type="hidden" name="number" value="{{ row.Number }}" />
+                          <button type="submit" class="malkapital-remove" aria-label="Ta bort" title="Ta bort">×</button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="empty">Inga målkapital satta.</p>
+          {% endif %}
         </section>
     </main>
 

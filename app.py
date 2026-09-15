@@ -282,6 +282,52 @@ def _save_mandat_flags(flags: dict[str, dict[str, int]]) -> None:
         df.to_sql("mandat_flags", conn, if_exists="replace", index=False)
 
 
+TARGET_KAPITAL_COLUMN = "Målkapital"
+
+
+def _load_mandat_target_kapital() -> pd.DataFrame:
+    if not DB_PATH.exists():
+        return pd.DataFrame()
+    with sqlite3.connect(DB_PATH) as conn:
+        if not _table_exists(conn, "mandat_target_kapital"):
+            return pd.DataFrame()
+        return pd.read_sql_query('SELECT * FROM "mandat_target_kapital"', conn)
+
+
+def _save_mandat_target_kapital(values: dict[str, float]) -> None:
+    """Persist per-account build-up target capital (Målkapital) in its own
+    small table, separate from the Mandat sheet/table. Manually set/cleared
+    by the advisor — nothing auto-clears it once reached."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing = _load_mandat_target_kapital()
+    existing_map = {}
+    if not existing.empty and "number" in existing.columns:
+        for _, row in existing.iterrows():
+            existing_map[str(row.get("number", "")).strip()] = row.to_dict()
+    for number, malkapital in values.items():
+        key = str(number).strip()
+        if not key:
+            continue
+        row = existing_map.get(key, {})
+        row["number"] = key
+        row["malkapital"] = float(malkapital) if malkapital else 0.0
+        existing_map[key] = row
+    df = pd.DataFrame(list(existing_map.values()))
+    with sqlite3.connect(DB_PATH) as conn:
+        df.to_sql("mandat_target_kapital", conn, if_exists="replace", index=False)
+
+
+def _sizing_basis(holdings_total: float, malkapital) -> float:
+    """The value to use for FI position-size math: the account's committed
+    build-up target (Målkapital) if set, otherwise its actual current
+    holdings. Never sizes below what's already actually there. Kassa FI /
+    actual deployable cash stay based on real holdings_total — only the
+    position-size formula uses this, so position sizes stay stable through
+    a gradual deposit phase instead of shrinking to match partial cash."""
+    target = _to_float(malkapital) or 0.0
+    return max(target, holdings_total) if target > 0 else holdings_total
+
+
 def _load_mandat_dyn() -> pd.DataFrame:
     if not DB_PATH.exists():
         return pd.DataFrame()
@@ -3187,6 +3233,30 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
         if col not in mandat.columns:
             mandat[col] = 0
 
+    target_kapital_df = _load_mandat_target_kapital()
+    mandat[TARGET_KAPITAL_COLUMN] = 0.0
+    target_kapital_map: dict[str, float] = {}
+    if not target_kapital_df.empty and "number" in target_kapital_df.columns and "malkapital" in target_kapital_df.columns:
+        target_kapital_map = dict(
+            zip(
+                target_kapital_df["number"].astype(str).str.strip(),
+                pd.to_numeric(target_kapital_df["malkapital"], errors="coerce").fillna(0.0),
+            )
+        )
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat[TARGET_KAPITAL_COLUMN] = mandat[number_col].map(target_kapital_map).fillna(0.0)
+
+    kund_by_number = {}
+    if number_col in mandat.columns and "Kund" in mandat.columns:
+        kund_by_number = dict(
+            zip(mandat[number_col].astype(str).str.strip(), mandat["Kund"].astype(str).str.strip())
+        )
+    malkapital_rows = [
+        {"Number": num, "Kund": kund_by_number.get(num, ""), "Målkapital": val}
+        for num, val in sorted(target_kapital_map.items(), key=lambda kv: (float(kv[0]) if kv[0].isdigit() else float("inf")))
+        if val
+    ]
+
     taggar_map = {}
     currency_map = {}
     if "Short Name" in taggar_df.columns:
@@ -3286,7 +3356,8 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
             )
         _fim = fixed_income_model or 0
         _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
-        fi_model_value = holdings_total * _fim if holdings_total else 0.0
+        sizing_basis = _sizing_basis(holdings_total, row.get(TARGET_KAPITAL_COLUMN, 0))
+        fi_model_value = sizing_basis * _fim if sizing_basis else 0.0
         position_fi = fi_model_value / _fi_divisor if fi_model_value else 0.0
         fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
 
@@ -3391,6 +3462,7 @@ def _build_fixed_income_context(sort_by: str = "att_kopa") -> dict:
         "kassa_fi_sum": kassa_fi_sum,
         "kassa_fi_matardepo": kassa_fi_matardepo,
         "matardepo_rows": matardepo_rows,
+        "malkapital_rows": malkapital_rows,
     }
 
 
@@ -3412,6 +3484,7 @@ def fixed_income(request: Request, sort_by: str = "att_kopa"):
             "kassa_fi_sum": ctx["kassa_fi_sum"],
             "kassa_fi_matardepo": ctx["kassa_fi_matardepo"],
             "matardepo_rows": ctx["matardepo_rows"],
+            "malkapital_rows": ctx["malkapital_rows"],
         },
     )
 
@@ -3448,6 +3521,32 @@ def fixed_income_export(sort_by: str = "att_kopa"):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
     )
+
+
+@app.post("/fixed-income/malkapital-save")
+async def fixed_income_malkapital_save(request: Request):
+    form = await request.form()
+    number = str(form.get("number", "")).strip()
+    referer = request.headers.get("referer") or "/fixed-income"
+    if not number:
+        return RedirectResponse(url=referer, status_code=303)
+    malkapital = _to_float(form.get("malkapital")) or 0.0
+    _save_mandat_target_kapital({number: malkapital})
+    return RedirectResponse(url=referer, status_code=303)
+
+
+@app.post("/fixed-income/malkapital-delete")
+async def fixed_income_malkapital_delete(request: Request):
+    form = await request.form()
+    number = str(form.get("number", "")).strip()
+    referer = request.headers.get("referer") or "/fixed-income"
+    if number:
+        df = _load_mandat_target_kapital()
+        if not df.empty and "number" in df.columns:
+            df = df[df["number"].astype(str).str.strip() != number]
+            with sqlite3.connect(DB_PATH) as conn:
+                df.to_sql("mandat_target_kapital", conn, if_exists="replace", index=False)
+    return RedirectResponse(url=referer, status_code=303)
 
 
 @app.get("/mina-kunder", response_class=HTMLResponse)
@@ -3679,6 +3778,18 @@ def ombalansering_fi(request: Request, q: str = ""):
         if col not in mandat.columns:
             mandat[col] = 0
 
+    target_kapital_df = _load_mandat_target_kapital()
+    mandat[TARGET_KAPITAL_COLUMN] = 0.0
+    if not target_kapital_df.empty and "number" in target_kapital_df.columns and "malkapital" in target_kapital_df.columns:
+        target_kapital_map = dict(
+            zip(
+                target_kapital_df["number"].astype(str).str.strip(),
+                pd.to_numeric(target_kapital_df["malkapital"], errors="coerce").fillna(0.0),
+            )
+        )
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat[TARGET_KAPITAL_COLUMN] = mandat[number_col].map(target_kapital_map).fillna(0.0)
+
     rows = []
     for _, mrow in mandat.iterrows():
         number = str(mrow.get(number_col, "")).strip()
@@ -3731,7 +3842,8 @@ def ombalansering_fi(request: Request, q: str = ""):
 
         _fim = fixed_income_model or 0
         _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
-        fi_model_value = holdings_total * _fim
+        sizing_basis = _sizing_basis(holdings_total, mrow.get(TARGET_KAPITAL_COLUMN, 0))
+        fi_model_value = sizing_basis * _fim
         position_fi = fi_model_value / _fi_divisor if fi_model_value else 0.0
         fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
 
@@ -3835,6 +3947,18 @@ def ombalansering_fi_export():
         if col not in mandat.columns:
             mandat[col] = 0
 
+    target_kapital_df = _load_mandat_target_kapital()
+    mandat[TARGET_KAPITAL_COLUMN] = 0.0
+    if not target_kapital_df.empty and "number" in target_kapital_df.columns and "malkapital" in target_kapital_df.columns:
+        target_kapital_map = dict(
+            zip(
+                target_kapital_df["number"].astype(str).str.strip(),
+                pd.to_numeric(target_kapital_df["malkapital"], errors="coerce").fillna(0.0),
+            )
+        )
+        mandat[number_col] = mandat[number_col].astype(str).str.strip()
+        mandat[TARGET_KAPITAL_COLUMN] = mandat[number_col].map(target_kapital_map).fillna(0.0)
+
     rows = []
     for _, mrow in mandat.iterrows():
         number = str(mrow.get(number_col, "")).strip()
@@ -3887,7 +4011,8 @@ def ombalansering_fi_export():
 
         _fim = fixed_income_model or 0
         _fi_divisor = 25 if _fim > 0.70 else 20 if _fim > 0.50 else 15 if _fim > 0.30 else 10
-        fi_model_value = holdings_total * _fim
+        sizing_basis = _sizing_basis(holdings_total, mrow.get(TARGET_KAPITAL_COLUMN, 0))
+        fi_model_value = sizing_basis * _fim
         position_fi = fi_model_value / _fi_divisor if fi_model_value else 0.0
         fi_position_value = max(50000, round(position_fi / 50000) * 50000) if position_fi else 0.0
 
