@@ -79,12 +79,6 @@
       </header>
 
       <section class="sheet">
-        <div class="module-buttons">
-          <a class="module-btn{% if selected_modul == 'core-sverige' %} active{% endif %}" href="/modulforandring?modul=core-sverige">Core Sverige</a>
-          <a class="module-btn{% if selected_modul == 'core-varlden' %} active{% endif %}" href="/modulforandring?modul=core-varlden">Core Världen</a>
-          <a class="module-btn{% if selected_modul == 'edge' %} active{% endif %}" href="/modulforandring?modul=edge">Edge</a>
-          <a class="module-btn{% if selected_modul == 'alternativa' %} active{% endif %}" href="/modulforandring?modul=alternativa">Alternativa</a>
-        </div>
         <form class="search" method="get" action="/modulforandring">
           <input
             type="text"
@@ -110,6 +104,19 @@
                 </tr>
               </thead>
               <tbody>
+                {% if "Antal" in columns %}
+                  <tr class="subtotal-row">
+                    {% for col in columns %}
+                      {% if col == "Antal" %}
+                        <td>{{ format_cell("Available Count", antal_sum) }}</td>
+                      {% elif loop.first %}
+                        <td>Summa</td>
+                      {% else %}
+                        <td></td>
+                      {% endif %}
+                    {% endfor %}
+                  </tr>
+                {% endif %}
                 {% for row in rows %}
                   <tr>
                     {% for col in columns %}

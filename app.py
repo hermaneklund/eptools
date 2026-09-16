@@ -4737,6 +4737,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
     rows = []
     columns = ["Number", "Kund", "Förvaltningsnotering", "Modul", "Kassa", "Position"]
     position_sum = 0
+    antal_sum = 0
     q_value = q.strip()
     if q_value:
         search_key = _normalize_key(q_value)
@@ -4750,13 +4751,17 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
             search_results = search_results[search_results["Number"].isin(mandat_kund_by_number.keys())]
             search_results["Antal"] = pd.to_numeric(search_results.get("Available Count", 0), errors="coerce")
             search_results = search_results[search_results["Antal"].fillna(0) != 0]
-            search_results["Kund"] = search_results["Number"].map(mandat_kund_by_number).fillna("")
             search_results["Short Name"] = search_results.get("Short Name", "").fillna("")
-            search_results = search_results.sort_values(
-                by=["Short Name", "Number", "Antal"],
-                ascending=[True, True, False],
-                kind="stable",
+            search_results = (
+                search_results.groupby(["Number", "Short Name"], as_index=False)["Antal"].sum()
             )
+            search_results["Kund"] = search_results["Number"].map(mandat_kund_by_number).fillna("")
+            search_results["__number_sort"] = pd.to_numeric(search_results["Number"], errors="coerce")
+            search_results = search_results.sort_values(
+                by="__number_sort",
+                ascending=True,
+                kind="stable",
+            ).drop(columns="__number_sort")
             rows = [
                 {
                     "Number": row.get("Number", ""),
@@ -4766,6 +4771,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
                 }
                 for _, row in search_results.iterrows()
             ]
+            antal_sum = sum(_to_float(r.get("Antal", 0)) or 0 for r in rows)
         columns = ["Number", "Kund", "Short Name", "Antal"]
     elif selected:
         col, label = selected
@@ -4918,6 +4924,7 @@ def modulforandring(request: Request, modul: str = "", q: str = ""):
             "rows": rows,
             "format_cell": format_cell,
             "position_sum": position_sum,
+            "antal_sum": antal_sum,
             "q": q,
             "search_mode": bool(q_value),
         },
