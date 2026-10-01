@@ -1629,6 +1629,42 @@ def _load_strategi_items() -> list[dict[str, object]]:
     return strategi_items
 
 
+def _compute_module_book_totals() -> dict[str, float]:
+    """Actual current SEK value of every holding across the entire book
+    (all accounts in Detaljerat), grouped by Modul (from Taggar)."""
+    detaljerat = _load_sheet("Detaljerat")
+    taggar_df = _load_sheet("Taggar")
+    if detaljerat.empty or "Short Name" not in detaljerat.columns:
+        return {}
+
+    taggar_map = {}
+    currency_map = {}
+    if "Short Name" in taggar_df.columns:
+        for _, row in taggar_df.iterrows():
+            key = _normalize_key(row.get("Short Name", ""))
+            if not key:
+                continue
+            taggar_map[key] = row.to_dict()
+            kurs = pd.to_numeric(row.get("Kurs", None), errors="coerce")
+            if pd.notna(kurs):
+                currency_map[key] = float(kurs)
+
+    modul = detaljerat["Short Name"].apply(
+        lambda s: taggar_map.get(_normalize_key(s), {}).get("Modul", "")
+    ).astype(str).str.strip().str.lower().replace({"": "övrigt", "nan": "övrigt"})
+
+    counts = pd.to_numeric(detaljerat.get("Available Count", pd.Series(dtype=float)), errors="coerce")
+    prices = pd.to_numeric(detaljerat.get("Price", pd.Series(dtype=float)), errors="coerce")
+    base_value = counts * prices
+    base_value = base_value.where(modul != "fixed income", base_value / 100)
+    if "Currency" in detaljerat.columns:
+        rates = detaljerat["Currency"].apply(lambda c: currency_map.get(_normalize_key(c), 1.0))
+        base_value = base_value * pd.to_numeric(rates, errors="coerce").fillna(1.0)
+
+    totals = base_value.groupby(modul).sum(min_count=1)
+    return {str(k): float(v) for k, v in totals.items() if pd.notna(v)}
+
+
 @app.post("/models-update")
 def models_update(request: Request):
     _update_all_models_for_today()
@@ -5253,6 +5289,9 @@ def model_dashboard(request: Request):
 @app.get("/strategisk-allokering", response_class=HTMLResponse)
 def strategisk_allokering(request: Request):
     strategi_items = _load_strategi_items()
+    module_totals = _compute_module_book_totals()
+    for item in strategi_items:
+        item["actual_value"] = module_totals.get(str(item["label"]).strip().lower(), 0.0)
     return templates.TemplateResponse(
         request=request,
         name="strategisk_allokering.html",
