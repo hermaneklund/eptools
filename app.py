@@ -2622,6 +2622,7 @@ def index(request: Request, q: str = ""):
     tillgang_totals = {}
     post_by_modul = {}
     related_numbers = []
+    related_mandat_initials = {}
     number_suggestions = []
     taggar_map = {}
     currency_map = {}
@@ -2741,6 +2742,7 @@ def index(request: Request, q: str = ""):
                 "missing_by_modul": missing_by_modul,
                 "has_holdings": has_holdings,
                 "related_numbers": related_numbers,
+                "related_mandat_initials": related_mandat_initials,
                 "number_suggestions": number_suggestions,
                 "format_cell": format_cell,
                 "format_percent": format_percent,
@@ -3106,6 +3108,15 @@ def index(request: Request, q: str = ""):
                         .tolist()
                     )
                     related_numbers = [n for n in related_numbers if n != number]
+                    mandat_col = "Mandat" if "Mandat" in same_kund.columns else None
+                    if mandat_col:
+                        for _, rel_row in same_kund.iterrows():
+                            rel_num = str(rel_row[number_col]).strip()
+                            rel_mandat = str(rel_row[mandat_col] or "").strip()
+                            if rel_mandat and rel_mandat.lower() != "nan":
+                                related_mandat_initials[rel_num] = "".join(
+                                    w[0] for w in rel_mandat.split()
+                                ).upper()
 
     if dashboard and dashboard.get("Number"):
         overview_compliance_breaches = _get_compliance_breaches_for_number(
@@ -3154,6 +3165,7 @@ def index(request: Request, q: str = ""):
             "missing_by_modul": missing_by_modul,
             "has_holdings": has_holdings,
             "related_numbers": related_numbers,
+            "related_mandat_initials": related_mandat_initials,
             "number_suggestions": number_suggestions,
             "format_cell": format_cell,
             "format_percent": format_percent,

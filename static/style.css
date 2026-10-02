@@ -2835,3 +2835,9 @@ th {
     font-size: 28px;
   }
 }
+
+.related-initials {
+  color: var(--muted, #64748b);
+  font-weight: 500;
+  margin-left: 4px;
+}

@@ -160,7 +160,7 @@
               <span class="label">Andra depåer</span>
               <div class="related-list">
                 {% for n in related_numbers %}
-                  <a class="related-item" href="/?q={{ n }}">{{ n }}</a>
+                  <a class="related-item" href="/?q={{ n }}">{{ n }}{% if related_mandat_initials.get(n) %} <span class="related-initials">{{ related_mandat_initials[n] }}</span>{% endif %}</a>
                 {% endfor %}
               </div>
             </div>
