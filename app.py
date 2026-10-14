@@ -3919,14 +3919,12 @@ def ombalansering_fi(request: Request, q: str = ""):
                     "Köp/Sälj": "Köp" if vs_target < 0 else "Sälj",
                     "Innehav": holding,
                     "vs target": vs_target,
+                    "vs target %": vs_target_raw / fi_position_value * 100,
                 })
 
-    if q:
-        q_norm = q.strip()
-        rows = [r for r in rows if str(r.get("Number", "")).startswith(q_norm)]
     rows.sort(key=lambda r: int(r["Number"]) if str(r.get("Number", "")).isdigit() else float("inf"))
 
-    columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "vs target"]
+    columns = ["Number", "Kund", "Köp/Sälj", "Innehav", "vs target", "vs target %"]
     return templates.TemplateResponse(
         request=request,
         name="ombalansering_fi.html",

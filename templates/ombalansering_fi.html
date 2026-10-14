@@ -78,9 +78,10 @@
 
       <div class="ombalansering-wrap">
         <section class="sheet">
-          <form class="search" method="get" action="/ombalansering-fi">
+          <form class="search" id="fi-filter-form" onsubmit="return false;">
             <input
               type="text"
+              id="fi-filter-input"
               name="q"
               value="{{ q }}"
               placeholder="Filtrera på depånummer"
@@ -98,7 +99,11 @@
                 <thead>
                   <tr>
                     {% for col in columns %}
-                      <th>{{ col }}</th>
+                      {% if col in ["vs target", "vs target %"] %}
+                        <th class="sortable" data-sort-col="{{ loop.index0 }}" style="cursor:pointer" title="Sortera">{{ col }} <span class="sort-ind"></span></th>
+                      {% else %}
+                        <th>{{ col }}</th>
+                      {% endif %}
                     {% endfor %}
                   </tr>
                 </thead>
@@ -106,8 +111,10 @@
                   {% for row in rows %}
                     <tr>
                       {% for col in columns %}
-                        <td>
-                          {% if col in ["Number", "Nummer"] %}
+                        <td{% if col == "vs target %" %} data-val="{{ row[col] }}"{% elif col == "vs target" %} data-val="{{ row[col] }}"{% endif %}>
+                          {% if col == "vs target %" %}
+                            {{ "%+.0f"|format(row[col]) }}%
+                          {% elif col in ["Number", "Nummer"] %}
                             <a href="/?q={{ row[col] }}" class="number-link">{{ format_cell(col, row[col]) }}</a>
                           {% elif col == "vs target" %}
                             {{ format_cell("Värde i SEK", row[col]) }}
@@ -129,7 +136,37 @@
     </main>
 
     <script>
-      const sidebar = document.getElementById("sidebar");
+      (() => {
+        const input = document.getElementById("fi-filter-input");
+        const body = document.querySelector(".ombalansering-wrap tbody");
+        if (!input || !body) return;
+        const apply = () => {
+          const q = input.value.trim();
+          body.querySelectorAll("tr").forEach((tr) => {
+            const num = tr.cells[0] ? tr.cells[0].textContent.trim() : "";
+            tr.style.display = !q || num.startsWith(q) ? "" : "none";
+          });
+        };
+        input.addEventListener("input", apply);
+        apply();
+
+        // Sort by clicking vs target / vs target % headers (asc -> desc -> asc)
+        document.querySelectorAll("th.sortable").forEach((th) => {
+          let dir = 1;
+          th.addEventListener("click", () => {
+            const idx = Number(th.dataset.sortCol);
+            const trs = Array.from(body.querySelectorAll("tr"));
+            const val = (tr) => parseFloat(tr.cells[idx].dataset.val) || 0;
+            trs.sort((a, b) => dir * (val(a) - val(b)));
+            trs.forEach((tr) => body.appendChild(tr));
+            document.querySelectorAll("th.sortable .sort-ind").forEach((s) => (s.textContent = ""));
+            th.querySelector(".sort-ind").textContent = dir === 1 ? "▲" : "▼";
+            dir = -dir;
+          });
+        });
+      })();
+
+      const sidebar =document.getElementById("sidebar");
       const backdrop = document.getElementById("sidebar-backdrop");
       const menuButton = document.getElementById("menu-button");
 
