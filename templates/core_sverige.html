@@ -152,6 +152,21 @@
                     </tr>
                   {% endfor %}
                 </tbody>
+                <tfoot>
+                  <tr class="holdings-total-row">
+                    <td><strong>Totalt</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><strong>{{ format_cell("Värde i SEK", holdings_total_value) }}</strong></td>
+                    <td title="Viktad yield (Σ vikt × yield, kassa = 0)"><strong>{% if portfolio_yield is not none %}{{ format_cell("Yield", portfolio_yield) }}{% endif %}</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td><strong>{{ format_percent_1(1) }}</strong></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             {% if chart_points %}
