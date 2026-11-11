@@ -5663,16 +5663,6 @@ def core_sverige(request: Request, ticker: str = ""):
         other_rows = [r for r in holdings_rows if str(r.get("Värdepapper", "")).strip().upper() != "KASSA"]
         other_rows = sorted(other_rows, key=lambda r: _to_float(r.get("Vikt", 0)) or 0, reverse=True)
         holdings_rows = other_rows + sek_rows
-    # Weighted portfolio yield: sum(weight * yield); cash and holdings without yield count as 0.
-    portfolio_yield = None
-    if holdings_rows:
-        portfolio_yield = 0.0
-        for row in holdings_rows:
-            y = _to_float(row.get("Yield"))
-            w = _to_float(row.get("Vikt"))
-            if y is None or w is None or not np.isfinite(y) or not np.isfinite(w):
-                continue
-            portfolio_yield += w * y
     stoploss_map = _load_model_stoplosses("core-sverige")
     for row in holdings_rows:
         holding_name = str(row.get("Värdepapper", "")).strip()
@@ -5750,7 +5740,6 @@ def core_sverige(request: Request, ticker: str = ""):
             "action_rows": action_rows,
             "holdings_rows": holdings_rows,
             "holdings_total_value": total_value if "total_value" in locals() else 0,
-            "portfolio_yield": portfolio_yield,
             "performance_rows": performance_rows,
             "performance_years": performance_years,
             "chart_points": json.dumps(chart_points),
