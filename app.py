@@ -5169,6 +5169,14 @@ def model_dashboard(request: Request):
             "index_cols": ["OMXS30", "OMXSPI"],
         },
         {
+            "title": "Core Världen",
+            "path": "/core-varlden",
+            "actions_tables": ["corevactions", "CoreVActions"],
+            "data_tables": ["corevdata", "CoreVData"],
+            "model_col": "CoreVärlden",
+            "index_cols": ["MSCI World SEK"],
+        },
+        {
             "title": "Edge",
             "path": "/edge",
             "actions_tables": ["edgeactions", "EdgeActions"],
@@ -5186,14 +5194,6 @@ def model_dashboard(request: Request):
             "index1_annual_rate": 0.07,
             "index1_label": "7% p.a.",
             "index2_col_index": 0,
-        },
-        {
-            "title": "Core Världen",
-            "path": "/core-varlden",
-            "actions_tables": ["corevactions", "CoreVActions"],
-            "data_tables": ["corevdata", "CoreVData"],
-            "model_col": "CoreVärlden",
-            "index_cols": ["MSCI World SEK"],
         },
     ]
 
@@ -5324,6 +5324,13 @@ def dashboard_export():
             "index_cols": ["OMXS30", "OMXSPI"],
         },
         {
+            "title": "Core Världen",
+            "actions_tables": ["corevactions", "CoreVActions"],
+            "data_tables": ["corevdata", "CoreVData"],
+            "model_col": "CoreVärlden",
+            "index_cols": ["MSCI World SEK"],
+        },
+        {
             "title": "Edge",
             "actions_tables": ["edgeactions", "EdgeActions"],
             "data_tables": ["edgedata", "EdgeData"],
@@ -5339,13 +5346,6 @@ def dashboard_export():
             "index1_annual_rate": 0.07,
             "index1_label": "7% p.a.",
             "index2_col_index": 0,
-        },
-        {
-            "title": "Core Världen",
-            "actions_tables": ["corevactions", "CoreVActions"],
-            "data_tables": ["corevdata", "CoreVData"],
-            "model_col": "CoreVärlden",
-            "index_cols": ["MSCI World SEK"],
         },
     ]
 
